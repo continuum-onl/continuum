@@ -1,8 +1,10 @@
+import { useVisionPrice } from "@/hooks/useVisionPrice";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CheckIcon, MinusIcon } from "@heroicons/react/24/outline";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { PageBackButton } from "@/components/PageBackButton";
 
 type Row = { label: string; free: string | boolean; vision: string | boolean };
 
@@ -22,6 +24,7 @@ function Cell({ value, accent }: { value: string | boolean; accent?: boolean }) 
 export default function Pricing() {
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const visionPrice = useVisionPrice();
 
   const rows: Row[] = [
     { label: t("bill_row_notes"), free: "50", vision: t("bill_unlimited") },
@@ -37,9 +40,7 @@ export default function Pricing() {
   return (
     <div className="min-h-screen bg-background text-foreground px-4 py-16 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-3xl">
-        <Button asChild variant="link" className="mb-8 inline-flex text-sm font-semibold uppercase tracking-[0.28em] text-zinc-400 transition hover:text-foreground">
-          <a href="/">{t("bill_back_to_home")}</a>
-        </Button>
+        <PageBackButton />
 
         <p className="text-[10px] uppercase tracking-[0.32em] text-muted-foreground">{t("bill_pricing_plans")}</p>
         <h1 className="mt-3 font-serif text-4xl tracking-tight text-foreground sm:text-5xl">
@@ -59,7 +60,7 @@ export default function Pricing() {
             </div>
             <div className="text-center">
               <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">{t("bill_vision")}</p>
-              <p className="mt-2 font-serif text-2xl text-foreground">$7.90</p>
+              <p className="mt-2 font-serif text-2xl text-foreground">{visionPrice}</p>
               <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{t("bill_per_month")}</p>
             </div>
           </div>

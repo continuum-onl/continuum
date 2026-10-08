@@ -81,6 +81,7 @@ interface TimerWidgetProps {
   onTimerStart?: (sessionId: string) => void;
   onTimerStop?: (duration: number) => void;
   compact?: boolean;
+  showSectionBorders?: boolean;
 }
 
 // ============================================================
@@ -93,6 +94,7 @@ export function TimerWidget({
   onTimerStart,
   onTimerStop,
   compact = false,
+  showSectionBorders = true,
 }: TimerWidgetProps) {
   const { t } = useLanguage();
   const {
@@ -269,20 +271,20 @@ export function TimerWidget({
   }
 
   return (
-    <div className="border border-border/5 bg-foreground/[0.01] rounded-sm p-5 text-foreground">
+    <section className={`${showSectionBorders ? "border-y border-border/10" : ""} py-5 text-foreground sm:py-6`}>
       {/* Header — Activity aesthetic */}
-      <div className="flex items-center justify-between mb-5">
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.32em] text-muted-foreground font-mono">{t("tm_timer")}</p>
-          <h3 className="mt-1 font-serif text-xl text-foreground truncate">{entityName}</h3>
+          <p className="font-mono text-[10px] uppercase tracking-[0.24em] text-muted-foreground">{t("tm_timer")}</p>
+          <h3 className="mt-1 break-words font-serif text-xl leading-snug text-foreground">{entityName}</h3>
         </div>
-        <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+        <span className="rounded-full border border-border/10 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground">
           {isRunning ? (isPaused ? t("tm_paused") : t("tm_running")) : t("tm_idle")}
         </span>
       </div>
 
       {/* Clock readout */}
-      <div className={`font-mono text-5xl sm:text-6xl text-center my-5 tracking-widest tabular-nums transition-colors ${isPaused ? 'text-muted-foreground' : 'text-foreground'}`}>
+      <div className={`my-6 text-center font-mono text-4xl tracking-[0.12em] tabular-nums transition-colors sm:text-6xl sm:tracking-[0.2em] ${isPaused ? 'text-muted-foreground' : 'text-foreground'}`}>
         {hrs}:{mins}:{secs}
       </div>
 
@@ -291,12 +293,12 @@ export function TimerWidget({
       )}
 
       {/* CONTROLS */}
-      <div className="grid grid-cols-3 gap-px bg-foreground/5 mb-3">
+      <div className="mb-3 grid grid-cols-2 gap-2">
         {!isRunning ? (
           <button
             onClick={handleStart}
             disabled={isStarting || timerLoading}
-            className="col-span-2 py-3 bg-background/40 hover:bg-foreground/[0.06] text-foreground font-mono text-[11px] uppercase tracking-[0.28em] transition disabled:opacity-50"
+            className="min-h-11 rounded-xl bg-secondary px-2 font-mono text-[10px] uppercase tracking-[0.14em] text-secondary-foreground transition hover:bg-secondary/75 disabled:opacity-50 sm:text-[11px] sm:tracking-[0.2em]"
           >
             {isStarting ? t("tm_starting") : t("tm_start")}
           </button>
@@ -305,14 +307,14 @@ export function TimerWidget({
             <button
               onClick={handlePauseToggle}
               disabled={timerLoading}
-              className="py-3 bg-background/40 hover:bg-foreground/[0.06] text-foreground font-mono text-[11px] uppercase tracking-[0.28em] transition disabled:opacity-50"
+              className="min-h-11 rounded-xl bg-secondary px-2 font-mono text-[10px] uppercase tracking-[0.14em] text-secondary-foreground transition hover:bg-secondary/75 disabled:opacity-50 sm:text-[11px] sm:tracking-[0.2em]"
             >
               {isPaused ? t("tm_resume") : t("tm_pause")}
             </button>
             <button
               onClick={handleStop}
               disabled={isStopping || timerLoading}
-              className="py-3 bg-background/40 hover:bg-foreground/[0.06] text-muted-foreground hover:text-foreground font-mono text-[11px] uppercase tracking-[0.28em] transition disabled:opacity-50"
+              className="min-h-11 rounded-xl bg-secondary px-2 font-mono text-[10px] uppercase tracking-[0.14em] text-secondary-foreground/70 transition hover:bg-secondary/75 hover:text-secondary-foreground disabled:opacity-50 sm:text-[11px] sm:tracking-[0.2em]"
             >
               {isStopping ? '…' : t("tm_stop")}
             </button>
@@ -321,7 +323,7 @@ export function TimerWidget({
         <button
           onClick={handleRestart}
           disabled={!isRunning || timerLoading}
-          className="py-3 bg-background/40 hover:bg-foreground/[0.06] text-muted-foreground hover:text-foreground font-mono text-[11px] uppercase tracking-[0.28em] transition disabled:opacity-30 disabled:cursor-not-allowed"
+          className="min-h-11 rounded-xl bg-secondary px-2 font-mono text-[10px] uppercase tracking-[0.14em] text-secondary-foreground/70 transition hover:bg-secondary/75 hover:text-secondary-foreground disabled:cursor-not-allowed disabled:opacity-30 sm:text-[11px] sm:tracking-[0.2em]"
         >
           {t("tm_restart")}
         </button>
@@ -329,13 +331,13 @@ export function TimerWidget({
 
       <button
         onClick={() => setIsFullscreen(true)}
-        className="w-full py-2.5 border border-border/5 bg-foreground/[0.01] hover:bg-foreground/[0.04] text-muted-foreground hover:text-foreground font-mono text-[10px] uppercase tracking-[0.32em] rounded-sm transition"
+        className="min-h-11 w-full rounded-xl bg-secondary px-2 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-secondary-foreground/70 transition hover:bg-secondary/75 hover:text-secondary-foreground sm:text-[10px] sm:tracking-[0.2em]"
       >
         {t("tm_flip_clock")}
       </button>
 
       {/* TODAY SECTION — Activity stat grid */}
-      <div className="mt-5 grid grid-cols-3 gap-px bg-foreground/5">
+      <div className="mt-5 grid grid-cols-1 divide-y divide-border/10 border-y border-border/10 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         <SummaryStat label={t("tm_today")} value={formatSeconds(today.todaySeconds + (isRunning ? currentElapsed : 0))} />
         <SummaryStat label={t("tm_sessions")} value={today.todayEntriesCount} />
         <SummaryStat label={t("tm_avg")} value={formatSeconds(today.avgEntrySeconds)} />
@@ -429,17 +431,15 @@ export function TimerWidget({
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
 function SummaryStat({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-background/40 p-3">
-      <p className="font-mono text-[9px] uppercase tracking-[0.28em] text-muted-foreground">{label}</p>
-      <p className="mt-1.5 font-serif text-lg text-foreground tabular-nums">{value}</p>
+    <div className="min-w-0 px-3 py-3 sm:px-4">
+      <p className="whitespace-normal break-words font-mono text-[9px] uppercase leading-snug tracking-[0.16em] text-muted-foreground sm:tracking-[0.24em]">{label}</p>
+      <p className="mt-1.5 break-words font-serif text-lg text-foreground tabular-nums">{value}</p>
     </div>
   );
 }
-
-

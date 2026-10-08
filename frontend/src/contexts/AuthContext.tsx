@@ -26,26 +26,34 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AppUser | null>(() => {
-    try {
-      const storedAccessToken = typeof window !== "undefined"
-        ? sessionStorage.getItem("access_token") ?? localStorage.getItem("access_token")
-        : null;
+function getInitialAuthState(): { user: AppUser | null; loading: boolean } {
+  try {
+    const storedAccessToken = typeof window !== "undefined"
+      ? sessionStorage.getItem("access_token") ?? localStorage.getItem("access_token")
+      : null;
 
-      if (!storedAccessToken) {
+    if (!storedAccessToken) {
+      if (typeof window !== "undefined") {
         sessionStorage.removeItem("access_token");
         localStorage.removeItem("access_token");
         localStorage.removeItem("auth_user");
-        return null;
       }
-      const cached = localStorage.getItem("auth_user");
-      return cached ? JSON.parse(cached) : null;
-    } catch {
-      return null;
+      return { user: null, loading: false };
     }
-  });
-  const [loading, setLoading] = useState(true);
+
+    const cached = localStorage.getItem("auth_user");
+    const user = cached ? JSON.parse(cached) as AppUser : null;
+    // A cached session can render immediately while /me revalidates in the effect.
+    return { user, loading: !user };
+  } catch {
+    return { user: null, loading: false };
+  }
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [initialAuth] = useState(getInitialAuthState);
+  const [user, setUser] = useState<AppUser | null>(initialAuth.user);
+  const [loading, setLoading] = useState(initialAuth.loading);
 
   const fetchUser = async (opts: { silent?: boolean } = {}) => {
     try {
@@ -156,8 +164,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("access_token");
     localStorage.removeItem("refresh_token");
     localStorage.removeItem("auth_user");
-    await resetAllCaches();
     setUser(null);
+    void resetAllCaches().catch((error: unknown) => {
+      console.error("Failed to clear cached data during logout", error);
+    });
   };
 
   return (

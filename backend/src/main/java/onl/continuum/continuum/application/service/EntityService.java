@@ -43,6 +43,8 @@ public class EntityService {
     private final UserRepository userRepo;
     private final UserService userService;
     private final PlanConfiguration planConfig;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private onl.continuum.continuum.infra.persistence.TrashItemRepository trashRepo;
 
     public EntityService(EntityRepository entityRepo, NoteRepository noteRepo, EntityLinkRepository entityLinkRepo, UserRepository userRepo, UserService userService, PlanConfiguration planConfig) {
         this.entityRepo = entityRepo;
@@ -165,6 +167,12 @@ public class EntityService {
     public Entity getEntity(String userId, String vaultId, String entityId) {
         return validateOwnership(userId, vaultId, entityId);
     }
+
+    public Entity toggleFavorite(String entityId) {
+        Entity entity = validateOwnership(getCurrentUserId(), getCurrentVaultId(), entityId);
+        entity.setFavorite(!entity.isFavorite());
+        return entityRepo.save(entity);
+    }
     
     /**
      * @deprecated Use getEntity(userId, vaultId, entityId) para validações mais robustas
@@ -242,6 +250,12 @@ public class EntityService {
         User user = getUser(userId);
         // Validação centralizada de posse
         Entity entity = validateOwnership(userId, vaultId, entityId);
+        if (trashRepo != null) {
+            trashRepo.save(onl.continuum.continuum.domain.trash.TrashItem.builder()
+                .userId(userId).vaultId(vaultId).kind("ENTITY").originalId(entity.getId())
+                .title(entity.getTitle()).subtype(entity.getType() == null ? null : entity.getType().name())
+                .entity(entity).deletedAt(java.time.Instant.now()).build());
+        }
         entityRepo.delete(entity);
         userService.decrementEntityCount(userId);
     }
@@ -318,18 +332,26 @@ public class EntityService {
         @CacheEvict(value = "insights:entities", allEntries = true)
     })
     public Entity trackActivity(String userId, String entityId) {
+        return trackActivity(userId, entityId, null);
+    }
+
+    public Entity trackActivity(String userId, String entityId, java.time.LocalDate requestedDate) {
         User user = getUser(userId);
         
         // Validação centralizada de posse
         Entity entity = validateOwnership(userId, user.getVaultId(), entityId);
         
         // Validar se é do tipo ACTIVITY
-        if (entity.getType() != EntityType.ACTIVITY) {
+        if (!entity.isTrackable()) {
             throw new BadRequestException("Entidade não é uma atividade. Tipo: " + entity.getType());
         }
         
         // Adicionar a data atual se ainda não existir (evita duplicata)
-        java.time.LocalDate today = onl.continuum.continuum.infra.web.RequestZone.today();
+        java.time.LocalDate now = onl.continuum.continuum.infra.web.RequestZone.today();
+        if (requestedDate != null && requestedDate.isAfter(now)) {
+            throw new BadRequestException("Cannot log a future date");
+        }
+        java.time.LocalDate today = requestedDate != null ? requestedDate : now;
         if (entity.getTrackingDates() == null) {
             entity.setTrackingDates(new java.util.ArrayList<>());
         }

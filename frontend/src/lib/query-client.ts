@@ -15,8 +15,16 @@ export const queryClient = new QueryClient({
   },
 });
 
+let queryCacheEpoch = 0;
+
+export function getQueryCacheEpoch() {
+  return queryCacheEpoch;
+}
+
 /** Drops every cached response (memory + IndexedDB). Used on logout. */
 export async function resetAllCaches() {
+  queryCacheEpoch += 1;
+  await queryClient.cancelQueries();
   queryClient.clear();
   await clearPersistedQueryCache();
 }

@@ -32,17 +32,8 @@ import {
 
 import { SessionNavBar } from "@/components/ui/session-nav-bar";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { VaultPicker } from "@/components/AccountExtras";
 import { OfflineStatus } from "@/components/offline/OfflineStatus";
-
-const mobileItems = [
-  { to: "/notes", icon: StickyNote, key: "nav_notes" },
-  { to: "/entities", icon: Tag, key: "nav_entities" },
-  { to: "/insights", icon: BarChart3, key: "nav_insights" },
-  { to: "/vault", icon: Lock, key: "nav_vault" },
-  { to: "/projects", icon: FolderOpen, key: "nav_projects" },
-  { to: "/activities", icon: Clock, key: "nav_activities" },
-  { to: "/graph", icon: GlobeAlt, key: "nav_graph" },
-];
 
 // Primary tabs shown in the bottom navigation bar on mobile.
 const mobileTabs = [
@@ -62,11 +53,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       <CommandPalette />
-
+      <VaultPicker />
       {/* Desktop hover-expand sidebar */}
       <SessionNavBar />
 
-      <main className="min-w-0 flex-1 overflow-auto bg-background lg:ml-[3.25rem]">
+      <main className="min-w-0 flex-1 overflow-visible bg-background lg:ml-[3.25rem] lg:overflow-auto">
         {children}
         {/* Spacer so content isn't hidden behind the floating mobile bottom nav */}
         {!isNoteEditor && <div className="h-[calc(5.5rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))] lg:hidden" />}

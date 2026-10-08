@@ -156,9 +156,32 @@ public class AccountController {
     }
 
     @DeleteMapping("/me")
-    @Operation(summary = "Delete account", description = "Permanently deletes the user account and all associated data (notes, entities, subscriptions)")
-    public ResponseEntity<Void> deleteAccount(@AuthenticationPrincipal CustomUserDetails user) {
-        userService.deleteUserWithCascade(user.getUserId());
+    @Operation(summary = "Schedule account deletion", description = "Schedules permanent deletion of the account and all data after a 7-day grace period")
+    public ResponseEntity<Map<String, Object>> deleteAccount(@AuthenticationPrincipal CustomUserDetails user) {
+        java.time.Instant purgeAt = userService.scheduleDeletion(user.getUserId());
+        return ResponseEntity.ok(Map.of("purgeAt", purgeAt.toString()));
+    }
+
+    @DeleteMapping("/me/now")
+    @Operation(summary = "Delete a scheduled account immediately", description = "Permanently deletes an account that is already scheduled for deletion")
+    public ResponseEntity<Void> deleteScheduledAccountNow(@AuthenticationPrincipal CustomUserDetails user) {
+        userService.purgeScheduledDeletionNow(user.getUserId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/deletion")
+    @Operation(summary = "Deletion status", description = "Returns when the account will be permanently deleted, if scheduled")
+    public ResponseEntity<Map<String, Object>> deletionStatus(@AuthenticationPrincipal CustomUserDetails user) {
+        User u = userRepo.findById(user.getUserId()).orElseThrow();
+        if (u.getDeletionRequestedAt() == null) return ResponseEntity.ok(Map.of("scheduled", false));
+        return ResponseEntity.ok(Map.of("scheduled", true, "purgeAt",
+                u.getDeletionRequestedAt().plus(java.time.Duration.ofDays(UserService.DELETION_GRACE_DAYS)).toString()));
+    }
+
+    @PostMapping("/deletion/cancel")
+    @Operation(summary = "Cancel account deletion", description = "Restores an account scheduled for deletion")
+    public ResponseEntity<Void> cancelDeletion(@AuthenticationPrincipal CustomUserDetails user) {
+        userService.cancelDeletion(user.getUserId());
         return ResponseEntity.noContent().build();
     }
 

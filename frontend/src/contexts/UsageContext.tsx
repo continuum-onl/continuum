@@ -1,8 +1,11 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { entitiesApi, notesApi, vaultApi } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
 import { qk, STALE } from "@/lib/queries";
+import { getPlanLimits } from "@/lib/plan";
+import { getUsageWarnings, usageWarningContent } from "@/lib/notifications";
+import { toast } from "@/hooks/use-toast";
 import type { EntityType, UserUsage } from "@/types";
 
 export type UsageDelta = Partial<Record<keyof UserUsage, number>>;
@@ -85,6 +88,8 @@ export function UsageProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [usage, setUsage] = useState<UserUsage | null>(null);
   const [loading, setLoading] = useState(true);
+  const previousUserId = useRef<string | null | undefined>(undefined);
+  const warnedMetrics = useRef(new Set<"notes" | "entities" | "vault">());
 
   const refresh = useCallback(async () => {
     if (!user) {
@@ -121,6 +126,30 @@ export function UsageProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    const userId = user?.id ?? null;
+    if (previousUserId.current !== userId) {
+      previousUserId.current = userId;
+      warnedMetrics.current.clear();
+      return;
+    }
+    if (!user || loading || !usage) return;
+
+    const warnings = getUsageWarnings(usage, getPlanLimits(user));
+    const currentlyOverThreshold = new Set(warnings.map(({ metric }) => metric));
+
+    for (const metric of warnedMetrics.current) {
+      if (!currentlyOverThreshold.has(metric)) warnedMetrics.current.delete(metric);
+    }
+
+    for (const { metric, percent } of warnings) {
+      if (warnedMetrics.current.has(metric)) continue;
+      const content = usageWarningContent(metric, percent);
+      toast({ title: content.title, description: content.description, variant: "warning", notificationCategory: "limit" });
+      warnedMetrics.current.add(metric);
+    }
+  }, [user, usage, loading]);
 
   const value = useMemo(() => ({ usage, loading, refresh, applyUsageDelta }), [usage, loading, refresh, applyUsageDelta]);
 

@@ -44,6 +44,7 @@ import { FitText } from "@/components/ui/fit-text";
 import { ListRowContent } from "@/components/ui/list-row-content";
 import { StickyNote } from "@/lib/heroicons";
 import { FloatingCreateButton } from "@/components/ui/floating-create-button";
+import { ListSortMenu, type ListSortMode } from "@/components/ui/list-sort-menu";
 
 
 import { Sheet, SheetContent } from "@/components/ui/sheet";
@@ -107,6 +108,15 @@ function formatMonth(key: string) {
   const [y, m] = key.split("-").map(Number);
   const d = new Date(y, m - 1, 1);
   return d.toLocaleString("en-US", { month: "long", year: "numeric" }).toUpperCase();
+}
+
+function sortLabels(t: (key: string) => string) {
+  return {
+    recent: t("list_sort_recent"),
+    oldest: t("list_sort_oldest"),
+    az: t("list_sort_az"),
+    za: t("list_sort_za"),
+  };
 }
 
 function relativeDate(iso: string): string {
@@ -208,6 +218,7 @@ export default function Notes() {
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [othersChipActive, setOthersChipActive] = useState(false);
 
   // Multiselect
   const [selectMode, setSelectMode] = useState(false);
@@ -217,34 +228,39 @@ export default function Notes() {
   const [bulkTypeApplying, setBulkTypeApplying] = useState(false);
 
   // Estados de Ordenação Dinâmica
-  const [sortBy, setSortBy] = useState<"createdAt" | "updatedAt">("updatedAt");
-  const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
+  const [sortMode, setSortMode] = useState<ListSortMode>("recent");
 
   // Drag-drop upload to vault
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-
-
-  // Edge swipe to open mobile filter drawer
-  const swipeRef = useRef<{ x: number; y: number; t: number } | null>(null);
-  const onSwipeStart = (e: React.TouchEvent) => {
-    const t = e.touches[0];
-    // Wider edge zone (160px) so it's easier to grab on mobile.
-    if (t.clientX > 160) return;
-    swipeRef.current = { x: t.clientX, y: t.clientY, t: Date.now() };
+  const indexSwipeStart = useRef<{ x: number; y: number; startedAt: number; excluded: boolean } | null>(null);
+  const handleIndexTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    const touch = event.touches[0];
+    const target = event.target;
+    const excluded = target instanceof Element && !!target.closest(
+      "input, textarea, select, [contenteditable='true'], [role='dialog'], [data-radix-popper-content-wrapper]",
+    );
+    indexSwipeStart.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      startedAt: Date.now(),
+      excluded,
+    };
   };
-  const onSwipeEnd = (e: React.TouchEvent) => {
-    const s = swipeRef.current;
-    if (!s) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - s.x;
-    const dy = Math.abs(t.clientY - s.y);
-    // More sensitive: shorter distance, longer time window.
-    if (dx > 28 && dy < 100 && Date.now() - s.t < 1000) setFilterDrawerOpen(true);
-    swipeRef.current = null;
-  };
+  const handleIndexTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+    const start = indexSwipeStart.current;
+    indexSwipeStart.current = null;
+    if (!start || start.excluded || event.changedTouches.length !== 1) return;
+    if (!window.matchMedia("(max-width: 1023px)").matches) return;
 
+    const touch = event.changedTouches[0];
+    const dx = touch.clientX - start.x;
+    const dy = Math.abs(touch.clientY - start.y);
+    if (dx >= 60 && dy <= dx * 0.75 && Date.now() - start.startedAt <= 1000) {
+      setFilterDrawerOpen(true);
+    }
+  };
 
   /* Load — cached first, revalidated in background */
   const notesQuery = useCachedResource<NoteSummary[]>(
@@ -253,7 +269,7 @@ export default function Notes() {
       const res = await notesApi.list();
       return Array.isArray(res.data) ? res.data : [];
     },
-    { staleTime: STALE.list, refetchInterval: 15_000 }
+    { staleTime: STALE.list, refetchInterval: 15_000, refetchOnMount: "always" }
   );
   const typesQuery = useCachedResource<string[]>(
     qk.noteTypes(),
@@ -342,6 +358,7 @@ export default function Notes() {
     notesQuery.setData((prev) => (prev ?? []).filter((n) => n.id !== deletedNote.id));
     try {
       await notesApi.delete(deletedNote.id);
+      await queryClient.invalidateQueries({ queryKey: ["trash"] });
       applyUsageDelta({ notesCount: -1 });
       void refresh();
     } catch {
@@ -383,6 +400,7 @@ export default function Notes() {
     setBulkDeleting(true);
     try {
       await Promise.all(ids.map((id) => notesApi.delete(id)));
+      await queryClient.invalidateQueries({ queryKey: ["trash"] });
       applyUsageDelta({ notesCount: -ids.length });
       void refresh();
       toast({ title: t(ids.length === 1 ? "notes_bulk_removed_one" : "notes_bulk_removed", { n: ids.length }) || `${ids.length} removed` });
@@ -460,22 +478,28 @@ export default function Notes() {
         return true;
       })
       .sort((a, b) => {
-        const dateA = new Date(sortBy === "createdAt" ? a.createdAt : a.updatedAt).getTime();
-        const dateB = new Date(sortBy === "createdAt" ? b.createdAt : b.updatedAt).getTime();
-        return sortOrder === "desc" ? dateB - dateA : dateA - dateB;
+        if (sortMode === "az" || sortMode === "za") {
+          const order = a.title.localeCompare(b.title, undefined, { sensitivity: "base" });
+          return sortMode === "az" ? order : -order;
+        }
+        const dateA = new Date(a.updatedAt).getTime();
+        const dateB = new Date(b.updatedAt).getTime();
+        return sortMode === "recent" ? dateB - dateA : dateA - dateB;
       });
-  }, [notes, view, selectedType, search, sortBy, sortOrder, searchContentById]);
+  }, [notes, view, selectedType, search, sortMode, searchContentById]);
 
   const grouped = useMemo(() => {
+    if (sortMode === "az" || sortMode === "za") {
+      return filtered.length ? [[sortMode, filtered] as const] : [];
+    }
     const map = new Map<string, NoteSummary[]>();
     for (const n of filtered) {
-      const targetDate = sortBy === "createdAt" ? n.createdAt : n.updatedAt;
-      const key = monthKey(new Date(targetDate));
+      const key = monthKey(new Date(n.updatedAt));
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(n);
     }
     return Array.from(map.entries());
-  }, [filtered, sortBy]);
+  }, [filtered, sortMode]);
 
   const toggleMonth = (key: string) => {
     setCollapsedMonths((prev) => {
@@ -587,8 +611,8 @@ export default function Notes() {
         onDragOver={dragOver}
         onDragLeave={dragLeave}
         onDrop={handleFileDrop}
-        onTouchStart={onSwipeStart}
-        onTouchEnd={onSwipeEnd}
+        onTouchStart={handleIndexTouchStart}
+        onTouchEnd={handleIndexTouchEnd}
       >
         {dragActive && (
           <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-background/80 backdrop-blur-sm">
@@ -604,15 +628,19 @@ export default function Notes() {
           </div>
         )}
 
-        {/* Edge swipe hint (mobile only) */}
-        <div
-          aria-hidden
-          className="pointer-events-none fixed left-0 top-1/2 z-20 hidden h-24 w-[3px] -translate-y-1/2 rounded-r bg-foreground/15 max-lg:block"
-        />
-
         {/* Mobile filter drawer */}
-        <Sheet open={filterDrawerOpen} onOpenChange={setFilterDrawerOpen}>
-          <SheetContent side="left" className="w-[280px] border-border/10 bg-background/95 p-6">
+        <Sheet
+          open={filterDrawerOpen}
+          onOpenChange={(open) => {
+            setFilterDrawerOpen(open);
+            if (!open) setOthersChipActive(false);
+          }}
+        >
+          <SheetContent
+            side="left"
+            className="w-[min(84vw,320px)] rounded-r-2xl border-border/10 bg-muted/60 p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-[6px] supports-[backdrop-filter]:bg-muted/60"
+            onTouchStart={(event) => event.stopPropagation()}
+          >
             <p className="mb-6 font-serif text-2xl text-foreground">{t("notes_filters")}</p>
             {SidebarContent}
           </SheetContent>
@@ -634,11 +662,6 @@ export default function Notes() {
                   <h1 className="mt-2 font-serif text-5xl tracking-tight text-foreground">{t("notes_title")}</h1>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
-                  {selectMode && (
-                    <Button size="sm" className="gap-2" onClick={exitSelectMode}>
-                      <X className="h-3.5 w-3.5" /> {t("select_done")}
-                    </Button>
-                  )}
                   <Button onClick={handleCreate} className="gap-2" disabled={creating}>
                     <Plus className="h-3.5 w-3.5" /> {creating ? t("notes_creating") : t("notes_new")}
                   </Button>
@@ -650,93 +673,71 @@ export default function Notes() {
 
             {/* Mobile: search + view chips */}
             <div className="mb-5 space-y-3 lg:hidden">
-              {selectMode && (
-                <Button size="sm" className="gap-2" onClick={exitSelectMode}>
-                  <X className="h-3.5 w-3.5" /> {t("select_done")}
-                </Button>
-              )}
-              <div className="relative z-0">
-
-                <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder={t("notes_searchAmong", { n: counts.all }) || `Search among ${counts.all} notes…`}
-                  className="h-12 w-full rounded-2xl bg-accent pl-11 text-[15px] placeholder:italic placeholder:text-muted-foreground"
+                <div className="flex items-center gap-2">
+                  <div className="relative z-0 flex-1">
+                    <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder={t("notes_searchAmong", { n: counts.all }) || `Search among ${counts.all} notes…`}
+                      className="h-12 w-full rounded-2xl bg-accent pl-11 text-[15px] placeholder:italic placeholder:text-muted-foreground"
+                    />
+                  </div>
+                  <ListSortMenu value={sortMode} onValueChange={setSortMode} labels={sortLabels(t)} />
+                </div>
+              <div onTouchStart={(event) => event.stopPropagation()}>
+                <FilterChips
+                  value={othersChipActive ? "others" : view}
+                  onChange={(v) => {
+                    if (v === "others") {
+                      setOthersChipActive(true);
+                      setFilterDrawerOpen(true);
+                      return;
+                    }
+                    setOthersChipActive(false);
+                    setView(v as View);
+                  }}
+                  options={[
+                    { value: "all", label: t("notes_archive") },
+                    { value: "recent", label: t("notes_recent") },
+                    { value: "favorites", label: t("notes_favorites") },
+                    { value: "archived", label: t("notes_dormant") },
+                    { value: "others", label: t("notes_others") },
+                  ]}
                 />
               </div>
-              <FilterChips
-                value={view}
-                onChange={(v) => setView(v as View)}
-                options={[
-                  { value: "all", label: t("notes_archive") },
-                  { value: "recent", label: t("notes_recent") },
-                  { value: "favorites", label: t("notes_favorites") },
-                  { value: "archived", label: t("notes_dormant") },
-                ]}
-              />
             </div>
 
             {/* Sticky search (desktop) */}
             <div className="sticky top-14 z-10 -mx-4 hidden border-b border-border/10 bg-background/70 px-4 py-3 backdrop-blur-xl lg:block">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-0 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  variant="ghost"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder={t("notes_searchPlaceholder")}
-                  className="w-full border-0 bg-transparent pl-6 text-sm text-foreground placeholder:italic placeholder:text-muted-foreground focus:outline-none focus:ring-0"
-                />
-              </div>
-            </div>
-
-
-            {/* Toolbar de Contagem e Controles de Ordenação */}
-            <div className="flex items-center justify-between border-b border-border/5 pb-3 pt-4 mb-6 text-[11px] text-muted-foreground">
-              <div>
-                {t(filtered.length === 1 ? "list_showing_entries_one" : "list_showing_entries", { n: filtered.length })}
-              </div>
-              <div className="flex items-center gap-4 font-mono">
-                <div className="flex items-center gap-1.5">
-                  <span>{t("list_sortBy")}</span>
-                  <Button
-                    type="button"
-                    variant="link"
-                    size="sm"
-                    className="normal-case text-muted-foreground hover:text-foreground transition-colors"
-                    onClick={() => setSortBy(sortBy === "createdAt" ? "updatedAt" : "createdAt")}
-                  >
-                    [{sortBy === "createdAt" ? t("list_sort_creation") : t("list_sort_modification")}]
-                  </Button>
+              <div className="flex items-center gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <Search className="pointer-events-none absolute left-0 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    variant="ghost"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder={t("notes_searchPlaceholder")}
+                    className="w-full border-0 bg-transparent pl-6 text-sm text-foreground placeholder:italic placeholder:text-muted-foreground focus:outline-none focus:ring-0"
+                  />
                 </div>
-                <Button
-                  type="button"
-                  variant="link"
-                  size="sm"
-                  className="normal-case flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                  onClick={() => setSortOrder(sortOrder === "desc" ? "asc" : "desc")}
-                >
-                  <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="m3 16 4 4 4-4" /><path d="M7 20V4" /><path d="m21 8-4-4-4 4" /><path d="M17 4v16" />
-                  </svg>
-                  {sortOrder === "desc" ? t("list_sort_recent") : t("list_sort_oldest")}
-                </Button>
+                <ListSortMenu value={sortMode} onValueChange={setSortMode} labels={sortLabels(t)} />
               </div>
             </div>
+
 
             {/* Selection action bar */}
             {selectMode && (
-              <div className="sticky top-[7.5rem] z-20 mb-6 flex flex-wrap items-center justify-between gap-3 rounded-sm border border-border/15 bg-background/80 px-3 py-2.5 backdrop-blur-xl">
+              <div className="sticky top-[7.5rem] z-20 mb-6 flex flex-col items-stretch gap-3 rounded-sm border border-border/15 bg-background/80 px-3 py-2.5 backdrop-blur-xl md:flex-row md:items-center md:justify-between">
                 <span className="text-sm text-muted-foreground">
                   {t("select_selected", { n: selectedIds.size })}
                 </span>
-                <div className="flex items-center gap-2">
+                <div className="grid w-full min-w-0 grid-cols-2 gap-2 md:flex md:w-auto md:flex-wrap">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="normal-case px-3 py-1.5 text-xs text-muted-foreground hover:border-border/40 hover:text-foreground"
+                    className="w-full justify-center normal-case px-3 py-1.5 text-xs text-muted-foreground hover:border-border/40 hover:text-foreground md:w-auto"
                     onClick={() => {
                       const allIds = filtered.map((n) => n.id);
                       const allSelected = allIds.every((id) => selectedIds.has(id));
@@ -752,7 +753,7 @@ export default function Notes() {
                         variant="outline"
                         size="sm"
                         disabled={selectedIds.size === 0 || bulkTypeApplying}
-                        className="normal-case inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground"
+                        className="w-full justify-center normal-case inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground md:w-auto"
                       >
                         {bulkTypeApplying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Tag className="h-3.5 w-3.5" />} {t("notes_set_type") || "Set type"}
                       </Button>
@@ -778,11 +779,20 @@ export default function Notes() {
                     type="button"
                     variant="destructive"
                     size="sm"
-                    className="normal-case inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
+                    className="w-full justify-center normal-case inline-flex items-center gap-1.5 px-3 py-1.5 text-xs md:w-auto"
                     onClick={() => setBulkDeleteOpen(true)}
                     disabled={selectedIds.size === 0}
                   >
                     <Trash2 className="h-3.5 w-3.5" /> {t("common_delete")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-center normal-case inline-flex items-center gap-1.5 px-3 py-1.5 text-xs md:w-auto"
+                    onClick={exitSelectMode}
+                  >
+                    <X className="h-3.5 w-3.5" /> {t("select_done")}
                   </Button>
                 </div>
               </div>
@@ -849,11 +859,15 @@ export default function Notes() {
                       >
                         <span className="flex items-center gap-2 text-[10px] uppercase tracking-[0.32em] text-muted-foreground group-hover:text-muted-foreground">
                           {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                          {formatMonth(key)}
+                          {key === "az" || key === "za"
+                            ? t(key === "az" ? "list_sort_az" : "list_sort_za")
+                            : formatMonth(key)}
                         </span>
-                        <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
-                          {t(items.length === 1 ? "list_showing_entries_one" : "list_showing_entries", { n: items.length })}
-                        </span>
+                        {key !== "az" && key !== "za" && (
+                          <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
+                            {items.length}
+                          </span>
+                        )}
                       </Button>
 
                       {!collapsed && (
@@ -866,7 +880,7 @@ export default function Notes() {
                                 ?? queryClient.getQueryData<{ content?: unknown }>(qk.note(note.id))?.content
                               : undefined;
                             const preview = activeSearch ? extractSearchSnippet(noteContent, activeSearch) : "";
-                            const targetDate = sortBy === "createdAt" ? note.createdAt : note.updatedAt;
+                            const targetDate = note.updatedAt;
 
                             const selected = selectedIds.has(note.id);
                             return (
@@ -915,6 +929,9 @@ export default function Notes() {
                                   {!selectMode && (
                                     <div className="flex shrink-0 items-center gap-2 pt-1">
                                       <span className="flex h-5 w-5 items-center justify-center">
+                                        <InsightSignalBadge kind="note" id={note.id} className="h-5 w-5" />
+                                      </span>
+                                      <span className="flex h-5 w-5 items-center justify-center">
                                         <Button
                                           type="button"
                                           variant="ghost"
@@ -951,9 +968,6 @@ export default function Notes() {
                                         >
                                           <Trash2 className="h-3 w-3" />
                                         </Button>
-                                      </span>
-                                      <span className="flex h-5 w-5 items-center justify-center">
-                                        <InsightSignalBadge kind="note" id={note.id} className="h-5 w-5" />
                                       </span>
                                     </div>
                                   )}

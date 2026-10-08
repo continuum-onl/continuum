@@ -135,12 +135,22 @@ public class EntityController {
         return ResponseEntity.noContent().build();
     }
 
+    @PatchMapping("/{id}/favorite")
+    @Operation(summary = "Toggle favorite status", description = "Toggles the favorite flag for an entity and persists it")
+    public ResponseEntity<EntityResponse> toggleFavorite(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable String id) {
+        Entity entity = entityService.toggleFavorite(id);
+        return ResponseEntity.ok(EntityResponse.from(entity, historyDaysFor(user)));
+    }
+
     @PostMapping("/{id}/track-activity")
     @Operation(summary = "Track activity occurrence", description = "Records a tracking event for an activity entity on the current date")
     public ResponseEntity<EntityResponse> trackActivity(
             @AuthenticationPrincipal CustomUserDetails user,
-            @PathVariable String id) {
-        Entity entity = entityService.trackActivity(user.getUserId(), id);
+            @PathVariable String id,
+            @RequestParam(required = false) java.time.LocalDate date) {
+        Entity entity = entityService.trackActivity(user.getUserId(), id, date);
         return ResponseEntity.ok(EntityResponse.from(entity, historyDaysFor(user)));
     }
 }

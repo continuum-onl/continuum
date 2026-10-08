@@ -99,16 +99,20 @@ export function TimeTrackingList({
 
 
   const handleQuickComplete = async (entity: Entity) => {
-    if (markingId) return;
-    setMarkingId(entity.id);
+    const key = qk.entities();
+    const previous = queryClient.getQueryData<Entity[]>(key);
+    const today = todayKey();
+    // Optimistic: mark as done instantly, roll back on failure.
+    queryClient.setQueryData<Entity[]>(key, (old) =>
+      old?.map((e) => (e.id === entity.id ? { ...e, trackingDates: [...(e.trackingDates ?? []), today] } : e)),
+    );
+    toast({ title: t('tm_marked_done_title'), description: entity.title || t('tm_activity') });
     try {
       await entitiesApi.track(entity.id);
-      await queryClient.invalidateQueries({ queryKey: ['entities'] });
-      toast({ title: t('tm_marked_done_title'), description: entity.title || t('tm_activity') });
+      void queryClient.invalidateQueries({ queryKey: ['entities'] });
     } catch {
+      queryClient.setQueryData(key, previous);
       toast({ title: t('tm_could_not_mark_title'), variant: 'destructive' });
-    } finally {
-      setMarkingId(null);
     }
   };
 
@@ -251,7 +255,10 @@ export function TimeTrackingList({
         onCreated={(entity) => {
           queryClient.invalidateQueries({ queryKey: ['entities'] });
           onCreated?.(entity);
-          navigate(`/entities/${entity.id}`);
+          const createdEntity = entity as Entity & { _optimisticId?: string };
+          if (!createdEntity._optimisticId) return;
+          queryClient.setQueryData(qk.entity(createdEntity.id), createdEntity);
+          navigate(`/entities/${createdEntity.id}`);
         }}
       />
     </>

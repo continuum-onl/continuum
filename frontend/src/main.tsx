@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { registerContinuumSW } from "./lib/pwa-register";
 
 // Apply persisted theme synchronously to avoid flash.
 if (typeof document !== "undefined") {
@@ -15,5 +16,7 @@ if (typeof document !== "undefined") {
     document.documentElement.style.colorScheme = "dark";
   }
 }
+
+void registerContinuumSW();
 
 createRoot(document.getElementById("root")!).render(<App />);

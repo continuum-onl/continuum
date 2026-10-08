@@ -1,10 +1,7 @@
 import * as React from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { Check } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface Feature {
   icon?: React.ReactNode;
@@ -18,6 +15,11 @@ interface PricingOption {
   badge?: string;
 }
 
+interface PlanDetail {
+  label: string;
+  value: string;
+}
+
 interface SubscriptionScreenProps {
   backgroundImageSrc?: string;
   headerImageSrc: string;
@@ -29,6 +31,7 @@ interface SubscriptionScreenProps {
   subscribeButtonText: string;
   footerText: string;
   currentPlanText?: string;
+  planDetails?: PlanDetail[];
   onSubscribe: (planId: string) => void;
 }
 
@@ -43,9 +46,10 @@ export function SubscriptionScreen({
   subscribeButtonText,
   footerText,
   currentPlanText,
+  planDetails,
   onSubscribe,
 }: SubscriptionScreenProps) {
-  const [selectedPlan, setSelectedPlan] = React.useState(defaultPlanId);
+  const pricing = pricingOptions.find((option) => option.id === defaultPlanId) ?? pricingOptions[0];
 
   return (
     <div className="relative flex w-[clamp(18rem,88vw,26rem)] flex-col items-center justify-end overflow-visible rounded-2xl bg-transparent shadow-2xl">
@@ -90,33 +94,26 @@ export function SubscriptionScreen({
           ))}
         </ul>
 
-        <RadioGroup value={selectedPlan} onValueChange={setSelectedPlan} className="mt-6 w-full space-y-2.5">
-          {pricingOptions.map((option) => (
-            <div key={option.id} className="relative">
-              <RadioGroupItem value={option.id} id={`subscription-${option.id}`} className="peer sr-only" />
-              <Label
-                htmlFor={`subscription-${option.id}`}
-                className={cn(
-                  "flex cursor-pointer items-center justify-between rounded-lg border-2 border-transparent bg-muted/50 p-3.5 transition-colors hover:bg-muted",
-                  "peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10",
-                )}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full border border-muted-foreground">
-                    <AnimatePresence>
-                      {selectedPlan === option.id && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }} className="h-3 w-3 rounded-full bg-primary" />}
-                    </AnimatePresence>
-                  </div>
-                  <span className="font-semibold text-foreground">{option.price}</span>
-                  <span className="text-sm text-muted-foreground">{option.period}</span>
-                </div>
-                {option.badge && <span className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">{option.badge}</span>}
-              </Label>
-            </div>
-          ))}
-        </RadioGroup>
+        {pricing && (
+          <div className="mt-6 flex w-full items-baseline justify-center gap-2 border-y border-border/20 py-5 text-center">
+            <span className="font-serif text-2xl text-foreground">{pricing.price}</span>
+            <span className="text-sm text-muted-foreground">{pricing.period}</span>
+            {pricing.badge && <span className="text-xs font-semibold text-primary">{pricing.badge}</span>}
+          </div>
+        )}
 
-        <Button size="lg" className="mt-6 w-full text-base" onClick={() => onSubscribe(selectedPlan)}>
+        {planDetails && planDetails.length > 0 && (
+          <dl className="mt-5 grid w-full grid-cols-2 gap-x-5 gap-y-4">
+            {planDetails.map((detail) => (
+              <div key={detail.label} className="min-w-0">
+                <dt className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{detail.label}</dt>
+                <dd className="mt-1 min-w-0 whitespace-normal break-words font-serif text-sm leading-tight tabular-nums text-foreground [overflow-wrap:anywhere] sm:text-base">{detail.value}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+
+        <Button size="lg" className="mt-6 w-full text-base" onClick={() => onSubscribe(defaultPlanId)}>
           {subscribeButtonText}
         </Button>
         <p className="mt-3 text-center text-xs text-muted-foreground">{footerText}</p>

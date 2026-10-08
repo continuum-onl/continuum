@@ -10,6 +10,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApi } from '@/hooks/useApi';
 import { useAuth } from '@/contexts/AuthContextNew';
+import { toast } from '@/hooks/use-toast';
 
 // ====================================================================
 // 1. PÁGINA DE LOGIN
@@ -232,7 +233,7 @@ export function ProfilePageAdvanced() {
   const { request, patch } = useApi({
     onSuccess: () => {
       console.log('✓ Perfil atualizado com sucesso');
-      alert('Perfil atualizado!');
+      toast({ title: 'Perfil atualizado!' });
     },
     onError: (error) => {
       console.error('✗ Erro ao atualizar perfil:', error);
@@ -264,7 +265,7 @@ export function ProfilePageAdvanced() {
 
   const handleUpdateProfile = async () => {
     if (!newUsername.trim()) {
-      alert('Username não pode estar vazio');
+      toast({ title: 'Username não pode estar vazio', variant: 'destructive' });
       return;
     }
 

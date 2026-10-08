@@ -8,6 +8,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import onl.continuum.continuum.application.exception.NotFoundException;
+import onl.continuum.continuum.application.service.TrashService;
 import java.net.URLDecoder;
 import java.util.List;
 import java.util.Set;
@@ -31,13 +32,15 @@ public class VaultController {
     private final VaultStorageService vaultStorageService;
     private final PlanConfiguration planConfig;
     private final UserRepository userRepo;
+    private final TrashService trashService;
 
     public VaultController(EntityIndexService entityIndexService, VaultStorageService vaultStorageService,
-                           PlanConfiguration planConfig, UserRepository userRepo) {
+                           PlanConfiguration planConfig, UserRepository userRepo, TrashService trashService) {
         this.entityIndexService = entityIndexService;
         this.vaultStorageService = vaultStorageService;
         this.planConfig = planConfig;
         this.userRepo = userRepo;
+        this.trashService = trashService;
     }
 
     @GetMapping(value = "/entity-index", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -51,7 +54,7 @@ public class VaultController {
     public ResponseEntity<List<VaultFileDTO>> listFiles(@AuthenticationPrincipal CustomUserDetails userDetails) {
         User user = userRepo.findById(userDetails.getUserId())
                 .orElseThrow(() -> new NotFoundException("User not found"));
-        List<VaultStorageService.VaultFileDescriptor> files = vaultStorageService.listFiles(user.getVaultId());
+        List<VaultStorageService.VaultFileDescriptor> files = activeFiles(user.getVaultId());
         return ResponseEntity.ok(files.stream().map(this::toDto).toList());
     }
 
@@ -65,12 +68,16 @@ public class VaultController {
         // Spring already percent-decodes the path segment. The stored fileId may contain '+',
         // which is a valid path char (only form-encoding treats '+' as space), so do NOT
         // run URLDecoder on it — that would corrupt fileIds containing '+'.
-        List<VaultStorageService.VaultFileDescriptor> files = vaultStorageService.listFiles(user.getVaultId());
+        List<VaultStorageService.VaultFileDescriptor> files = activeFiles(user.getVaultId());
         boolean exists = files.stream().anyMatch(f -> f.fileId().equals(fileId));
         if (!exists) {
             throw new NotFoundException("File not found");
         }
-        vaultStorageService.deleteFile(user.getVaultId(), fileId);
+        VaultStorageService.VaultFileDescriptor file = files.stream()
+            .filter(f -> f.fileId().equals(fileId))
+            .findFirst()
+            .orElseThrow(() -> new NotFoundException("File not found"));
+        trashService.trashFile(userDetails.getUserId(), user.getVaultId(), file);
         return ResponseEntity.noContent().build();
     }
 
@@ -82,7 +89,7 @@ public class VaultController {
                 .orElseThrow(() -> new NotFoundException("User not found"));
 
         // Do not URLDecoder.decode — see deleteFile note above.
-        List<VaultStorageService.VaultFileDescriptor> files = vaultStorageService.listFiles(user.getVaultId());
+        List<VaultStorageService.VaultFileDescriptor> files = activeFiles(user.getVaultId());
         VaultStorageService.VaultFileDescriptor descriptor = files.stream()
                 .filter(f -> f.fileId().equals(fileId))
                 .findFirst()
@@ -204,9 +211,16 @@ public class VaultController {
     }
 
     private long getCurrentVaultSizeBytes(String vaultId) {
-        return vaultStorageService.listFiles(vaultId).stream()
+        return activeFiles(vaultId).stream()
                 .mapToLong(VaultStorageService.VaultFileDescriptor::size)
                 .sum();
+    }
+
+    private List<VaultStorageService.VaultFileDescriptor> activeFiles(String vaultId) {
+        Set<String> trashedFileIds = Set.copyOf(trashService.trashedFileIds(vaultId));
+        return vaultStorageService.listFiles(vaultId).stream()
+                .filter(file -> !trashedFileIds.contains(file.fileId()))
+                .toList();
     }
 
     private String buildFileId(String originalFilename) {

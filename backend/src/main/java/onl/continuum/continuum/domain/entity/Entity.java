@@ -39,6 +39,7 @@ public class Entity {
     
     private EntityType type;
     private String description;
+    private boolean favorite;
     private List<LocalDate> trackingDates;
     private String fileKey;
     private Instant createdAt;

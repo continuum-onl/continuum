@@ -64,6 +64,7 @@ public interface VaultStorageService {
     Optional<byte[]> loadFile(String vaultId, String fileId);
     void deleteFile(String vaultId, String fileId);
     List<VaultFileDescriptor> listFiles(String vaultId);
+    void deleteVault(String vaultId);
 
     public record VaultFileDescriptor(String fileId, String fileName, String contentType, long size, Instant createdAt) {}
 }

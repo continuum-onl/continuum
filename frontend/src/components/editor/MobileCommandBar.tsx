@@ -19,6 +19,7 @@ import {
   Link as LinkIcon,
   Table as TableIcon,
   Upload,
+  FolderOpen,
   Trash2,
 } from "@/lib/heroicons";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -69,6 +70,10 @@ const COMMANDS: Cmd[] = [
     },
   },
   { key: "upload", label: "ed_cmd_upload", icon: Upload, run: () => requestUpload("image/*,application/pdf,audio/*") },
+  { key: "vault", label: "ed_cmd_vault", icon: FolderOpen, run: (e) => {
+    e.chain().focus().run();
+    window.dispatchEvent(new CustomEvent("continuum:vault-pick", { detail: { editor: e } }));
+  } },
   { key: "table", label: "ed_cmd_table", icon: TableIcon, run: (e) => e.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run() },
 ];
 

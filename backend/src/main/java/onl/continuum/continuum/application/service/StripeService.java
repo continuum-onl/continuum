@@ -244,4 +244,28 @@ public class StripeService {
 
     public String getPriceVisionMonthly() { return priceVisionMonthly; }
     public String getPriceVisionYearly() { return priceVisionYearly; }
+
+    /**
+     * Read-only price info straight from Stripe (base currency + any configured
+     * currency_options such as BRL). Display only; Checkout decides the charge.
+     */
+    public java.util.Map<String, Object> getPriceDisplay(String priceId) {
+        java.util.Map<String, Object> out = new java.util.HashMap<>();
+        if (priceId == null || !priceId.startsWith("price_")) return out;
+        try {
+            com.stripe.model.Price p = com.stripe.model.Price.retrieve(priceId,
+                    com.stripe.param.PriceRetrieveParams.builder().addExpand("currency_options").build(), null);
+            out.put("currency", p.getCurrency());
+            out.put("unitAmount", p.getUnitAmount());
+            java.util.Map<String, Long> opts = new java.util.HashMap<>();
+            if (p.getCurrencyOptions() != null) {
+                p.getCurrencyOptions().forEach((cur, o) -> { if (o.getUnitAmount() != null) opts.put(cur, o.getUnitAmount()); });
+            }
+            out.put("currencyOptions", opts);
+        } catch (Exception e) {
+            org.slf4j.LoggerFactory.getLogger(StripeService.class)
+                    .warn("[Stripe] Could not load price {}: {}", priceId, e.getMessage());
+        }
+        return out;
+    }
 }

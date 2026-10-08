@@ -267,27 +267,6 @@ export default function Insights() {
   const [search, setSearch] = useState("");
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 
-  // Edge swipe to open mobile filter drawer
-  const swipeRef = useRef<{ x: number; y: number; t: number } | null>(null);
-
-  const onSwipeStart = (e: React.TouchEvent) => {
-    const t = e.touches[0];
-    if (t.clientX > 160) return; // Wider edge zone for easier grab
-    swipeRef.current = { x: t.clientX, y: t.clientY, t: Date.now() };
-  };
-
-  const onSwipeEnd = (e: React.TouchEvent) => {
-    const s = swipeRef.current;
-    if (!s) return;
-    const t = e.changedTouches[0];
-    const dx = t.clientX - s.x;
-    const dy = Math.abs(t.clientY - s.y);
-    // More sensitive: shorter horizontal distance, longer time window
-    if (dx > 28 && dy < 100 && Date.now() - s.t < 1000) setFilterDrawerOpen(true);
-    swipeRef.current = null;
-  };
-
-
   const load = async (_silent = false) => {
     await insightsQuery.refetch();
   };
@@ -420,15 +399,7 @@ export default function Insights() {
 
   return (
     <AppLayout>
-      <div
-        className="relative min-h-full"
-      >
-        {/* Edge swipe hint (mobile only) */}
-        <div
-          aria-hidden
-          className="pointer-events-none fixed left-0 top-1/2 z-20 hidden h-24 w-[3px] -translate-y-1/2 rounded-r bg-foreground/15"
-        />
-
+      <div className="relative min-h-full">
         {/* Menu Lateral Mobile */}
         <Sheet open={filterDrawerOpen} onOpenChange={setFilterDrawerOpen}>
           <SheetContent side="left" className="w-[280px] border-border/10 bg-background/95 p-6">

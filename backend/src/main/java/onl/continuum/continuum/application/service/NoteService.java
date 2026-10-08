@@ -47,6 +47,8 @@ public class NoteService {
     private final PlanConfiguration planConfig;
     private final UserRepository userRepo;
     private final ObjectMapper objectMapper;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private onl.continuum.continuum.infra.persistence.TrashItemRepository trashRepo;
 
     public NoteService(
             NoteRepository noteRepo, 
@@ -211,7 +213,27 @@ public class NoteService {
             .filter(n -> n.getUserId().equals(userId))
             .orElseThrow(() -> new NotFoundException("Note not found: " + noteId));
 
-        String newContent = note.getContent();
+        String storedContent = storageService.loadNoteContent(vaultId, noteId).orElse("");
+        boolean contentChanged = false;
+        if (req.content() != null && !req.content().isNull()) {
+            try {
+                JsonNode storedJson = storedContent.isBlank() ? null
+                        : new com.fasterxml.jackson.databind.ObjectMapper().readTree(storedContent);
+                contentChanged = storedJson == null || !storedJson.equals(req.content());
+            } catch (Exception e) {
+                contentChanged = true;
+            }
+        }
+        boolean titleChanged = req.title() != null && !req.title().isBlank()
+                && !req.title().equals(note.getTitle());
+        String reqType = req.type() == null ? null : (req.type().isBlank() ? null : req.type());
+        boolean typeChanged = req.type() != null && !java.util.Objects.equals(reqType, note.getType());
+        if (!contentChanged && !titleChanged && !typeChanged) {
+            // Nothing changed (e.g. note only opened/read): keep updatedAt intact.
+            return NoteResponse.from(note, storedContent);
+        }
+
+        String newContent = storedContent;
         List<String> newEntityIds = note.getEntityIds();
         
         // Se novo conteúdo foi fornecido (JsonNode), processar
@@ -378,6 +400,17 @@ public class NoteService {
         // OWNERSHIP: Validar que a nota pertence ao usuário autenticado
         if (!note.getUserId().equals(userId)) {
             throw new AccessDeniedException("You do not have permission to delete this note");
+        }
+
+        // Snapshot into the trash so the note can be restored for 30 days.
+        if (trashRepo != null) {
+            try {
+                String snapshot = storageService.loadNoteContent(vaultId, noteId).orElse("");
+                trashRepo.save(onl.continuum.continuum.domain.trash.TrashItem.builder()
+                    .userId(userId).vaultId(vaultId).kind("NOTE").originalId(noteId)
+                    .title(note.getTitle()).subtype(note.getType()).note(note).noteContent(snapshot)
+                    .deletedAt(Instant.now()).build());
+            } catch (Exception ignored) { }
         }
 
         // Delete file from B2 if fileKey exists

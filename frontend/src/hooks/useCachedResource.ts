@@ -12,7 +12,12 @@ import { STALE } from "@/lib/queries";
 export function useCachedResource<T>(
   key: QueryKey,
   fetcher: () => Promise<T>,
-  options?: { staleTime?: number; enabled?: boolean; refetchInterval?: number | false }
+  options?: {
+    staleTime?: number;
+    enabled?: boolean;
+    refetchInterval?: number | false;
+    refetchOnMount?: boolean | "always";
+  }
 ) {
   const qc = useQueryClient();
   const query = useQuery({
@@ -21,6 +26,7 @@ export function useCachedResource<T>(
     staleTime: options?.staleTime ?? STALE.list,
     enabled: options?.enabled ?? true,
     refetchInterval: options?.refetchInterval,
+    refetchOnMount: options?.refetchOnMount,
   });
 
   const setData = useCallback(

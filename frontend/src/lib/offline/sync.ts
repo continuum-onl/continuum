@@ -19,6 +19,7 @@ const QUEUE_EVENT = "continuum-offline:queue";
 let currentStatus: OfflineStatus = navigator.onLine ? "online" : "offline";
 let pendingCount = 0;
 let syncing = false;
+let syncManagerInitialized = false;
 
 function emitStatus(next?: OfflineStatus) {
   if (next) currentStatus = next;
@@ -183,6 +184,9 @@ function scheduleRetry(delayMs: number) {
 
 export function initSyncManager(baseURL: string) {
   setSyncBaseURL(baseURL);
+  if (syncManagerInitialized) return;
+  syncManagerInitialized = true;
+
   // Initial state
   refreshPendingCount().then(() => {
     if (navigator.onLine) void flushQueue();

@@ -5,8 +5,10 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import onl.continuum.continuum.application.exception.BadRequestException;
 import onl.continuum.continuum.application.exception.NotFoundException;
+import onl.continuum.continuum.domain.subscription.Subscription;
+import onl.continuum.continuum.domain.subscription.SubscriptionStatus;
 import onl.continuum.continuum.domain.user.User;
 import onl.continuum.continuum.domain.user.UserRepository;
 import onl.continuum.continuum.infra.persistence.NoteRepository;
@@ -76,25 +78,81 @@ public class UserService {
      * @param userId The ID of the user to delete
      * @throws NotFoundException if user not found
      */
-    @Transactional
     public void deleteUserWithCascade(String userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new NotFoundException("User not found: " + userId));
+        purgeEverything(user);
+    }
 
-        // 1. Delete all notes for this user
-        noteRepository.deleteByUserId(userId);
+    public static final int DELETION_GRACE_DAYS = 7;
 
-        // 2. Delete all entities for this user
-        entityRepository.deleteByUserId(userId);
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private onl.continuum.continuum.infra.vault.VaultStorageService vaultStorage;
 
-        // 3. Delete all subscriptions for this user
-        subscriptionRepository.deleteByUserId(userId);
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    @org.springframework.context.annotation.Lazy
+    private SubscriptionService subscriptionService;
 
-        // 4. Delete all blacklisted tokens for this user
-        tokenBlacklistRepository.deleteByUserId(userId);
+    /** Marks the account for deletion; it can be restored within the grace period. */
+    public java.time.Instant scheduleDeletion(String userId) {
+        java.time.Instant now = java.time.Instant.now();
+        mongoTemplate.updateFirst(Query.query(Criteria.where("_id").is(userId)),
+            new Update().set("deletionRequestedAt", now), User.class);
+        return now.plus(java.time.Duration.ofDays(DELETION_GRACE_DAYS));
+    }
 
-        // 5. Finally, delete the user
-        userRepository.delete(user);
+    public void cancelDeletion(String userId) {
+        mongoTemplate.updateFirst(Query.query(Criteria.where("_id").is(userId)),
+            new Update().unset("deletionRequestedAt"), User.class);
+    }
+
+    /** Permanently deletes an account that is already scheduled for deletion. */
+    public void purgeScheduledDeletionNow(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found: " + userId));
+        if (user.getDeletionRequestedAt() == null) {
+            throw new BadRequestException("Account deletion is not scheduled");
+        }
+        purgeEverything(user);
+    }
+
+    /** Hourly: permanently erase accounts whose grace period has ended. */
+    @org.springframework.scheduling.annotation.Scheduled(cron = "0 0 * * * *")
+    public void purgeScheduledDeletions() {
+        java.time.Instant cutoff = java.time.Instant.now().minus(java.time.Duration.ofDays(DELETION_GRACE_DAYS));
+        java.util.List<User> due = mongoTemplate.find(
+            Query.query(Criteria.where("deletionRequestedAt").lt(cutoff)), User.class);
+        for (User u : due) {
+            try { purgeEverything(u); } catch (Exception e) {
+                org.slf4j.LoggerFactory.getLogger(UserService.class).error("Account purge failed for {}", u.getId(), e);
+            }
+        }
+    }
+
+    /** Removes every record and file belonging to the user, then the user itself. */
+    public void purgeEverything(User user) {
+        String userId = user.getId();
+        Subscription subscription = subscriptionRepository.findByUserId(userId).orElse(null);
+        if (subscription != null && subscription.getStripeSubscriptionId() != null
+                && subscription.getStatus() != SubscriptionStatus.CANCELED) {
+            if (subscriptionService == null) {
+                throw new IllegalStateException("Subscription service unavailable; refusing to purge account");
+            }
+            subscriptionService.cancel(userId, true);
+        }
+        if (user.getVaultId() != null) {
+            if (vaultStorage == null) {
+                throw new IllegalStateException("Vault storage unavailable; refusing to purge account");
+            }
+            vaultStorage.deleteVault(user.getVaultId());
+        }
+        Query byUser = Query.query(Criteria.where("userId").is(userId));
+        for (String c : java.util.List.of("notes", "entities", "entity_links", "note_links", "refresh_tokens",
+                "subscriptions", "time_entries", "timer_sessions", "token_blacklist", "tracking_events",
+                "user_score_snapshots", "trash_items", "folders", "stripe_event_logs")) {
+            mongoTemplate.remove(byUser, c);
+        }
+        userRepository.deleteById(userId);
     }
 
     public User getById(String userId) {

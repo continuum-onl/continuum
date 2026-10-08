@@ -37,7 +37,8 @@ public class PlansController {
         return ResponseEntity.ok(Map.of(
                 "vision", Map.of(
                         "monthly", stripe.getPriceVisionMonthly(),
-                        "yearly",  stripe.getPriceVisionYearly()
+                        "yearly",  stripe.getPriceVisionYearly(),
+                        "monthlyDisplay", stripe.getPriceDisplay(stripe.getPriceVisionMonthly())
                 )
         ));
     }

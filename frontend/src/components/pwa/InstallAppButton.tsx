@@ -19,7 +19,7 @@ export default function InstallAppButton() {
 
   const handle = async () => {
     if (isIos && !canInstall) {
-      toast({ title: t("pwa_ios_title"), description: t("pwa_ios_desc") });
+      toast({ title: t("pwa_ios_title"), description: t("pwa_ios_desc"), variant: "info" });
       return;
     }
 

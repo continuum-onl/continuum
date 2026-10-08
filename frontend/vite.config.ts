@@ -1,6 +1,7 @@
 import fs from "fs";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
+import { VitePWA } from "vite-plugin-pwa";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
@@ -46,6 +47,44 @@ export default defineConfig(({ mode }) => {
     },
     plugins: [
       react(),
+      VitePWA({
+        registerType: "autoUpdate",
+        manifest: false,
+        workbox: {
+          globPatterns: [
+            "**/*.{html,js,mjs,css,ico,png,jpg,jpeg,svg,webp,avif,woff,woff2,ttf,json,webmanifest}",
+          ],
+          importScripts: ["/timer-service-worker.js"],
+          navigateFallback: "/index.html",
+          runtimeCaching: [
+            {
+              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+              handler: "StaleWhileRevalidate",
+              options: {
+                cacheName: "google-fonts-stylesheets",
+                expiration: {
+                  maxEntries: 4,
+                  maxAgeSeconds: 7 * 24 * 60 * 60,
+                },
+              },
+            },
+            {
+              urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+              handler: "CacheFirst",
+              options: {
+                cacheName: "google-fonts-webfonts",
+                expiration: {
+                  maxEntries: 12,
+                  maxAgeSeconds: 365 * 24 * 60 * 60,
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
+          ],
+        },
+      }),
       mode === "development" && componentTagger(),
     ].filter(Boolean),
     resolve: {

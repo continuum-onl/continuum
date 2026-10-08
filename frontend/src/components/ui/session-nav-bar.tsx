@@ -1,3 +1,4 @@
+import { TrashIcon as TrashNav } from "@heroicons/react/24/outline";
 "use client";
 
 import { cn } from "@/lib/utils";
@@ -75,6 +76,7 @@ const trackingNav: NavItem[] = [
 const exploreNav: NavItem[] = [
   { to: "/insights", label: "nav_insights", icon: BarChart3, iconSolid: BarChart3Solid },
   { to: "/graph", label: "nav_graph", icon: GlobeAlt, iconSolid: GlobeAltSolid },
+  { to: "/trash", label: "nav_trash", icon: TrashNav, iconSolid: TrashNav },
 ];
 
 function SidebarLink({

@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useOfflineStatus } from "@/hooks/use-offline-status";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { flushQueue } from "@/lib/offline/sync";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 interface OfflineStatusProps {
@@ -15,6 +15,7 @@ interface OfflineStatusProps {
 
 export function OfflineStatus({ className, compact = false }: OfflineStatusProps) {
   const { t } = useLanguage();
+  const { toast } = useToast();
   const { status, pending, syncing } = useOfflineStatus();
   const [forcing, setForcing] = useState(false);
 
@@ -22,21 +23,21 @@ export function OfflineStatus({ className, compact = false }: OfflineStatusProps
 
   const handleSyncNow = async () => {
     if (!navigator.onLine) {
-      toast.error(t("gr_toast_offline"));
+      toast({ title: t("gr_toast_offline"), variant: "destructive" });
       return;
     }
     setForcing(true);
     try {
       const result = await flushQueue();
       if (result.sent === 0 && result.failed === 0) {
-        toast.success(t("gr_toast_uptodate"));
+        toast({ title: t("gr_toast_uptodate"), variant: "info" });
       } else if (result.failed === 0) {
-        toast.success(t("gr_toast_synced", { count: result.sent, plural: result.sent === 1 ? "" : "s" }));
+        toast({ title: t("gr_toast_synced", { count: result.sent, plural: result.sent === 1 ? "" : "s" }) });
       } else {
-        toast.warning(t("gr_toast_partial", { sent: result.sent, failed: result.failed }));
+        toast({ title: t("gr_toast_partial", { sent: result.sent, failed: result.failed }), variant: "destructive" });
       }
     } catch {
-      toast.error(t("gr_toast_sync_failed"));
+      toast({ title: t("gr_toast_sync_failed"), variant: "destructive" });
     } finally {
       setForcing(false);
     }

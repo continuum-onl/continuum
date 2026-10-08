@@ -6,7 +6,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import LinkExtension from "@tiptap/extension-link";
 import Mention from "@tiptap/extension-mention";
 import TaskList from "@tiptap/extension-task-list";
-import TaskItem from "@tiptap/extension-task-item";
+import { ClickableTaskItem } from "./extensions/ClickableTaskItem";
 import { Table } from "@tiptap/extension-table";
 import TableRow from "@tiptap/extension-table-row";
 import TableCell from "@tiptap/extension-table-cell";
@@ -255,9 +255,38 @@ const buildSuggestion = (variant: "entity" | "note", currentNoteId?: string) => 
           interactive: true,
           trigger: "manual",
           placement: "bottom-start",
+          theme: "transparent",
+          maxWidth: 360,
+          offset: [0, 10],
+          duration: 0,
+          hideOnClick: false,
+          zIndex: 80,
+          popperOptions: {
+            strategy: "fixed",
+            modifiers: [
+              { name: "flip", options: { fallbackPlacements: ["top-start", "bottom-start"], padding: 8 } },
+              { name: "preventOverflow", options: { padding: 8 } },
+            ],
+          },
           onHidden: () => teardown(),
         })[0] ?? null;
-        if (popup) activeMentionPopups.add(popup);
+        if (popup) {
+          activeMentionPopups.add(popup);
+          const box = popup.popper?.querySelector(".tippy-box") as HTMLElement | null;
+          const content = popup.popper?.querySelector(".tippy-content") as HTMLElement | null;
+          if (box) {
+            box.style.background = "transparent";
+            box.style.border = "none";
+            box.style.boxShadow = "none";
+            box.style.padding = "0";
+            box.style.maxWidth = "none";
+            box.style.zIndex = "80";
+          }
+          if (content) {
+            content.style.padding = "0";
+            content.style.background = "transparent";
+          }
+        }
       },
       onUpdate(props: SuggestionProps<MentionItem>) {
         component?.updateProps({ ...props, query: props.query, variant });
@@ -356,13 +385,9 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, Props>(
         VaultPdf,
         VaultAudio,
         TaskList,
-        TaskItem.configure({
-          nested: true,
-          // The current document position is resolved by the change listener
-          // below. Returning true prevents Tiptap from reverting the native
-          // checkbox while the editor is read-only.
-          onReadOnlyChecked: () => true,
-        }),
+        // Custom node view: toggles via a real ProseMirror transaction, so it
+        // works in read-only mode too and triggers onUpdate/auto-save.
+        ClickableTaskItem.configure({ nested: true }),
         HeadingFold.configure({
           onFoldChange: (indices) => onFoldChangeRef.current?.(indices),
         }),
@@ -597,35 +622,8 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, Props>(
       dom?.classList.toggle("is-readonly", !editable);
     }, [editor, editable]);
 
-    // Tiptap's read-only callback receives the node captured when its node view
-    // was created. After the first toggle that object is stale, so subsequent
-    // clicks can fail. Resolve the live task node from the clicked DOM element
-    // on every change instead.
-    useEffect(() => {
-      if (!editor || editable) return;
-      const dom = editor.view.dom;
-
-      const toggleReadOnlyTask = (event: Event) => {
-        const checkbox = event.target instanceof HTMLInputElement ? event.target : null;
-        if (!checkbox || checkbox.type !== "checkbox") return;
-        const taskItem = checkbox.closest<HTMLElement>('li[data-type="taskItem"]');
-        if (!taskItem || !dom.contains(taskItem)) return;
-
-        const position = editor.view.posAtDOM(taskItem, 0);
-        const node = editor.state.doc.nodeAt(position);
-        if (!node || node.type.name !== "taskItem") return;
-
-        editor.view.dispatch(
-          editor.state.tr.setNodeMarkup(position, undefined, {
-            ...node.attrs,
-            checked: checkbox.checked,
-          })
-        );
-      };
-
-      dom.addEventListener("change", toggleReadOnlyTask);
-      return () => dom.removeEventListener("change", toggleReadOnlyTask);
-    }, [editor, editable]);
+    // Checklist toggling (including read-only mode) is handled by the
+    // ClickableTaskItem node view, which dispatches a real transaction.
 
     // "/" command + toolbar upload entry point
     useEffect(() => {

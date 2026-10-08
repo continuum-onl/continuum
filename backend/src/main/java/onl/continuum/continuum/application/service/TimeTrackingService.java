@@ -183,6 +183,9 @@ public class TimeTrackingService {
             throw new onl.continuum.continuum.application.exception.BadRequestException("durationSeconds must be positive");
         }
         LocalDate date = request.getDate() != null ? request.getDate() : onl.continuum.continuum.infra.web.RequestZone.today();
+        if (date.isAfter(onl.continuum.continuum.infra.web.RequestZone.today())) {
+            throw new onl.continuum.continuum.application.exception.BadRequestException("Future dates are not allowed");
+        }
 
         // Fallback vaultId from user record if missing
         String resolvedVaultId = (vaultId != null && !vaultId.isBlank())

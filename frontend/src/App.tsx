@@ -1,14 +1,16 @@
 import * as React from "react";
 import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { useIsRestoring } from "@tanstack/react-query";
 import { createIdbPersister, QUERY_CACHE_BUSTER } from "@/lib/offline/query-persister";
 import { queryClient } from "@/lib/query-client";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { UsageProvider } from "@/contexts/UsageContext";
 import { EntityProvider } from "@/contexts/EntityContext";
+import { API_BASE_URL } from "@/lib/api";
+import { initSyncManager } from "@/lib/offline/sync";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { SkeletonPage } from "@/components/ui/skeleton";
@@ -54,6 +56,7 @@ const Versions = React.lazy(() => import("./pages/Versions"));
 const SettingsPage = React.lazy(() => import("./pages/Settings"));
 const EditorSettingsPage = React.lazy(() => import("./pages/EditorSettings"));
 const NotFound = React.lazy(() => import("./pages/NotFound"));
+const Trash = React.lazy(() => import("./pages/Trash"));
 const Insights = React.lazy(() => import("./pages/Insights"));
 
 const queryPersister = createIdbPersister();
@@ -77,9 +80,40 @@ if (typeof window !== "undefined") {
 /** Warms notes/entities/insights as soon as the user is authenticated. */
 function PrefetchPrimaryData() {
   const { user } = useAuth();
+  const isRestoring = useIsRestoring();
   React.useEffect(() => {
-    if (user) prefetchPrimaryLists();
-  }, [user]);
+    if (!user || isRestoring) return;
+
+    let cancelled = false;
+    let idleHandle: number | undefined;
+    let timeoutHandle: number | undefined;
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    const run = () => {
+      idleHandle = undefined;
+      timeoutHandle = undefined;
+      if (!cancelled && navigator.onLine) void prefetchPrimaryLists();
+    };
+    const schedule = () => {
+      if (cancelled || idleHandle !== undefined || timeoutHandle !== undefined) return;
+      if (idleWindow.requestIdleCallback) {
+        idleHandle = idleWindow.requestIdleCallback(run, { timeout: 5000 });
+      } else {
+        timeoutHandle = window.setTimeout(run, 1500);
+      }
+    };
+
+    schedule();
+    window.addEventListener("online", schedule);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("online", schedule);
+      if (idleHandle !== undefined) idleWindow.cancelIdleCallback?.(idleHandle);
+      if (timeoutHandle !== undefined) window.clearTimeout(timeoutHandle);
+    };
+  }, [user, isRestoring]);
   return null;
 }
 
@@ -203,6 +237,7 @@ const AppRoutes = () => {
     <Route path="/projects/:id" element={<ProtectedRoute><EntityDetail /></ProtectedRoute>} />
     <Route path="/graph" element={<ProtectedRoute><KnowledgeGraph /></ProtectedRoute>} />
     <Route path="/insights" element={<ProtectedRoute><Insights /></ProtectedRoute>} />
+    <Route path="/trash" element={<ProtectedRoute><Trash /></ProtectedRoute>} />
     <Route path="/vault" element={<ProtectedRoute><Vault /></ProtectedRoute>} />
     <Route path="/vault/download/:fileId" element={<ProtectedRoute><VaultDownload /></ProtectedRoute>} />
     <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
@@ -216,6 +251,7 @@ const AppRoutes = () => {
 
 const App = () => {
   React.useEffect(() => {
+    initSyncManager(API_BASE_URL);
     if (Capacitor.isNativePlatform()) {
       void SystemBars.setStyle({ style: SystemBarsStyle.Dark });
     }
@@ -237,7 +273,6 @@ const App = () => {
     >
       <ThemeProvider>
         <TooltipProvider>
-          <Toaster />
           <Sonner />
           <BrowserRouter>
             <NativeGoogleAuthRedirect />

@@ -1,10 +1,13 @@
+import { useVisionPrice } from "@/hooks/useVisionPrice";
 import { useEffect, useState } from "react";
 import api, { subscriptionApi } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUsage } from "@/contexts/UsageContext";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { SubscriptionScreen } from "@/components/ui/subscription-screen";
 import type { Plan } from "@/types";
+import { isUnlimited } from "@/lib/plan";
 
 interface SubInfo {
   plan?: string;
@@ -16,8 +19,10 @@ interface SubInfo {
 
 export default function SubscriptionContent() {
   const { user } = useAuth();
+  const { usage } = useUsage();
   const { toast } = useToast();
   const { t } = useLanguage();
+  const visionPrice = useVisionPrice();
   const [sub, setSub] = useState<SubInfo | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
@@ -77,6 +82,21 @@ export default function SubscriptionContent() {
 
   const currentPlan = ((sub?.effectivePlan || user?.plan) as Plan | string) || "FREE";
   const isPro = (currentPlan === "PRO" ? "VISION" : currentPlan) === "VISION";
+  const formatLimit = (value?: number, suffix = "") => {
+    if (value === undefined) return "—";
+    return isUnlimited(value) ? "∞" : `${value}${suffix}`;
+  };
+  const formatUsageLimit = (used: number | undefined, limit: number | undefined, suffix = "") => {
+    if (limit === undefined) return "—";
+    const formattedUsed = used === undefined ? "—" : suffix === " MB" ? used.toFixed(1) : String(Math.round(used));
+    return `${formattedUsed}/${formatLimit(limit)}${suffix}`;
+  };
+  const planDetails = !isPro ? [
+    { label: t("bill_notes"), value: formatUsageLimit(usage?.notesCount, user?.maxNotes) },
+    { label: t("bill_entities"), value: formatUsageLimit(usage?.entitiesCount, user?.maxEntities) },
+    { label: t("bill_history"), value: formatLimit(user?.historyDays, "d") },
+    { label: t("bill_vault"), value: formatUsageLimit(usage?.vaultSizeMB, user?.maxVaultSizeMB, " MB") },
+  ] : undefined;
 
   const handleCheckout = async () => {
     if (!prices.monthly || !prices.monthly.startsWith("price_")) {
@@ -112,11 +132,12 @@ export default function SubscriptionContent() {
         appName="Continuum"
         planType="VISION"
         features={visionBenefits.map((text) => ({ text }))}
-        pricingOptions={[{ id: "monthly", price: "$7.90", period: t("bill_per_month") }]}
+        pricingOptions={[{ id: "monthly", price: visionPrice, period: t("bill_per_month") }]}
         defaultPlanId="monthly"
         subscribeButtonText={isPro ? (portalLoading ? t("bill_opening") : t("bill_manage_billing")) : checkoutLoading ? t("bill_opening") : t("bill_upgrade_to_vision")}
         footerText={syncing ? "Confirming your payment with Stripe…" : t("bill_cancel_secure")}
         currentPlanText={`${t("bill_current")}: ${isPro ? "VISION" : "FREE"}${sub?.status ? ` · ${sub.status.toLowerCase()}` : ""}`}
+        planDetails={planDetails}
         onSubscribe={isPro ? handlePortal : handleCheckout}
       />
     </div>

@@ -247,8 +247,9 @@ public class BackblazeVaultStorage implements VaultStorageService {
                     .bucket(bucket)
                     .key(key(vaultId, "files/" + fileId))
                     .build());
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             log.warn("Failed to delete vault file {} from vault {}: {}", fileId, vaultId, e.getMessage());
+            throw e;
         }
     }
 
@@ -286,6 +287,46 @@ public class BackblazeVaultStorage implements VaultStorageService {
         } while (continuationToken != null);
 
         return files;
+    }
+
+    @Override
+    public void deleteVault(String vaultId) {
+        if (!configured) {
+            throw new IllegalStateException("Vault storage is not configured; refusing to purge account data");
+        }
+
+        String prefix = key(vaultId, "");
+        String continuationToken = null;
+        do {
+            ListObjectsV2Request.Builder listRequest = ListObjectsV2Request.builder()
+                    .bucket(bucket)
+                    .prefix(prefix)
+                    .maxKeys(1000);
+            if (continuationToken != null) {
+                listRequest.continuationToken(continuationToken);
+            }
+
+            ListObjectsV2Response listed = s3.listObjectsV2(listRequest.build());
+            List<ObjectIdentifier> objects = listed.contents().stream()
+                    .map(object -> ObjectIdentifier.builder().key(object.key()).build())
+                    .toList();
+            if (!objects.isEmpty()) {
+                DeleteObjectsResponse deleted = s3.deleteObjects(DeleteObjectsRequest.builder()
+                        .bucket(bucket)
+                        .delete(Delete.builder().objects(objects).build())
+                        .build());
+                if (!deleted.errors().isEmpty()) {
+                    S3Error firstError = deleted.errors().get(0);
+                    throw new IllegalStateException("Failed to delete vault object " + firstError.key()
+                            + ": " + firstError.message());
+                }
+            }
+            continuationToken = listed.nextContinuationToken();
+        } while (continuationToken != null);
+
+        String cachePrefix = vaultId + ":";
+        noteContentCache.asMap().keySet().removeIf(cacheKey -> cacheKey.startsWith(cachePrefix));
+        log.info("Deleted all B2 objects for vault {}", vaultId);
     }
 
     // ── Entities ─────────────────────────────────────────────────────────────

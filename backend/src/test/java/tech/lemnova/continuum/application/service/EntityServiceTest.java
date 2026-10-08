@@ -106,6 +106,24 @@ class EntityServiceTest {
     }
 
     @Test
+    @DisplayName("toggleFavorite: toggles and saves an owned entity")
+    void toggleFavorite_togglesAndSavesEntity() {
+        Entity entity = new Entity();
+        entity.setId("e1");
+        entity.setUserId("user1");
+        entity.setVaultId("vault1");
+        entity.setFavorite(false);
+
+        when(entityRepo.findById("e1")).thenReturn(Optional.of(entity));
+        when(entityRepo.save(any(Entity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Entity result = entityService.toggleFavorite("e1");
+
+        assertThat(result.isFavorite()).isTrue();
+        verify(entityRepo).save(entity);
+    }
+
+    @Test
     @DisplayName("getNotesForEntity: retrieves all notes linked to entity")
     void getNotesForEntity_returnsNotes() {
         String userId = "user1";

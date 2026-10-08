@@ -1,4 +1,6 @@
 import * as React from "react";
+import { toast as sonnerToast } from "sonner";
+import { notificationContent, NOTIFICATION_DURATION, shouldDisplayNotification, type NotificationCategory } from "@/lib/notifications";
 
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
 
@@ -132,22 +134,57 @@ function dispatch(action: Action) {
   });
 }
 
-type Toast = Omit<ToasterToast, "id">;
+type Toast = Omit<ToasterToast, "id" | "variant"> & {
+  variant?: ToastProps["variant"] | "info" | "warning";
+  notificationCategory?: NotificationCategory;
+};
 
-function toast({ ...props }: Toast) {
+function toast({ notificationCategory, ...props }: Toast) {
   const id = genId();
+  const kind = props.variant === "destructive"
+    ? "error"
+    : props.variant === "info"
+      ? "info"
+      : props.variant === "warning"
+        ? "warning"
+        : "success";
+  if (!shouldDisplayNotification(kind, notificationCategory)) {
+    return { id, dismiss: () => {}, update: () => {} };
+  }
 
-  const update = (props: ToasterToast) =>
+  const content = notificationContent(kind, props.title, props.description);
+  const sonnerOptions = {
+    id,
+    description: content.description,
+    action: props.action,
+    duration: NOTIFICATION_DURATION,
+  };
+  sonnerToast[kind](content.title, sonnerOptions);
+
+  const update = (nextToast: ToasterToast) => {
     dispatch({
       type: "UPDATE_TOAST",
-      toast: { ...props, id },
+      toast: { ...nextToast, id },
     });
-  const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id });
+    const nextKind = nextToast.variant === "destructive" ? "error" : kind;
+    const nextContent = notificationContent(nextKind, nextToast.title, nextToast.description);
+    sonnerToast[nextKind](nextContent.title, {
+      id,
+      description: nextContent.description,
+      action: nextToast.action,
+      duration: NOTIFICATION_DURATION,
+    });
+  };
+  const dismiss = () => {
+    dispatch({ type: "DISMISS_TOAST", toastId: id });
+    sonnerToast.dismiss(id);
+  };
 
   dispatch({
     type: "ADD_TOAST",
     toast: {
       ...props,
+      variant: props.variant === "info" || props.variant === "warning" ? "default" : props.variant,
       id,
       open: true,
       onOpenChange: (open) => {
@@ -179,7 +216,10 @@ function useToast() {
   return {
     ...state,
     toast,
-    dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
+    dismiss: (toastId?: string) => {
+      dispatch({ type: "DISMISS_TOAST", toastId });
+      sonnerToast.dismiss(toastId);
+    },
   };
 }
 

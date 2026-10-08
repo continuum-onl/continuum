@@ -56,6 +56,11 @@ const items: SlashItem[] = [
       editor.chain().focus().deleteRange(range).run();
       window.dispatchEvent(new CustomEvent("continuum:editor-upload"));
     } },
+  { titleKey: "ed_slash_vault_title", descKey: "ed_slash_vault_desc", title: "From vault", description: "Insert a file already in your vault", icon: ImageIcon, keywords: ["vault", "existing", "cofre", "file", "arquivo"],
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run();
+      window.dispatchEvent(new CustomEvent("continuum:vault-pick", { detail: { editor } }));
+    } },
 ];
 
 interface SlashListProps {
@@ -158,7 +163,35 @@ export const SlashCommands = Extension.create({
                 interactive: true,
                 trigger: "manual",
                 placement: "bottom-start",
+                theme: "transparent",
+                maxWidth: 360,
+                offset: [0, 10],
+                duration: 0,
+                hideOnClick: false,
+                zIndex: 80,
+                popperOptions: {
+                  strategy: "fixed",
+                  modifiers: [
+                    { name: "flip", options: { fallbackPlacements: ["top-start", "bottom-start"], padding: 8 } },
+                    { name: "preventOverflow", options: { padding: 8 } },
+                  ],
+                },
               });
+              const firstPopup = popup?.[0];
+              const box = firstPopup?.popper?.querySelector(".tippy-box") as HTMLElement | null;
+              const content = firstPopup?.popper?.querySelector(".tippy-content") as HTMLElement | null;
+              if (box) {
+                box.style.background = "transparent";
+                box.style.border = "none";
+                box.style.boxShadow = "none";
+                box.style.padding = "0";
+                box.style.maxWidth = "none";
+                box.style.zIndex = "80";
+              }
+              if (content) {
+                content.style.padding = "0";
+                content.style.background = "transparent";
+              }
             },
             onUpdate(props) {
               component?.updateProps(props);

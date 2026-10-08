@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import type { Entity } from '@/types';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { toast } from '@/hooks/use-toast';
 
 /**
  * Detail view for a single time-tracked entity
@@ -93,7 +94,7 @@ export function TimeTrackingDetail() {
     if (!entityId) return;
     const durationSeconds = parseDurationString(manualDuration);
     if (durationSeconds <= 0) {
-      alert(t('tm_duration_must_be_positive'));
+      toast({ title: t('common_error'), description: t('tm_duration_must_be_positive'), variant: 'destructive' });
       return;
     }
 

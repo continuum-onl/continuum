@@ -14,6 +14,7 @@ public record EntityResponse(
     String title,
     EntityType type,
     String description,
+    boolean favorite,
     Instant createdAt,
     List<LocalDate> trackingDates
 ) {
@@ -44,6 +45,7 @@ public record EntityResponse(
             entity.getTitle(),
             entity.getType(),
             entity.getDescription(),
+            entity.isFavorite(),
             entity.getCreatedAt(),
             dates
         );

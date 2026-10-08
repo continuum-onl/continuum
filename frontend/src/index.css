@@ -112,6 +112,8 @@
     --popup-foreground: 45 12% 90%;
     --popup-muted: 45 4% 62%;
     --popup-border: 0 0% 100% / 0.06;
+    --notification-neutral: 0 0% 100%;
+    --notification-shadow: 0 12px 36px hsl(0 0% 0% / 0.35);
   }
 
 
@@ -192,6 +194,89 @@
   }
 
   .dark { color-scheme: dark; }
+}
+
+/* One shared appearance for all transient notifications. */
+[data-sonner-toaster].continuum-notifications {
+  --width: 340px;
+  z-index: 200;
+}
+[data-sonner-toast].continuum-notification {
+  --notification-tone: var(--notification-neutral);
+  background: hsl(var(--popover) / 0.96);
+  color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--notification-tone) / 0.24);
+  border-radius: 8px;
+  box-shadow: var(--notification-shadow);
+  backdrop-filter: blur(20px);
+  padding: 24px 44px 26px 18px;
+  gap: 12px;
+  align-items: flex-start;
+  overflow: hidden;
+  font-family: var(--font-ui);
+}
+[data-sonner-toast].continuum-notification[data-type="success"] { --notification-tone: var(--success); }
+[data-sonner-toast].continuum-notification[data-type="error"] { --notification-tone: var(--destructive); }
+[data-sonner-toast].continuum-notification[data-type="warning"] { --notification-tone: var(--warning); }
+.light [data-sonner-toast].continuum-notification { --notification-tone: var(--foreground); }
+.light [data-sonner-toast].continuum-notification[data-type="success"] { --notification-tone: var(--success); }
+.light [data-sonner-toast].continuum-notification[data-type="error"] { --notification-tone: var(--destructive); }
+.light [data-sonner-toast].continuum-notification[data-type="warning"] { --notification-tone: var(--warning); }
+[data-sonner-toast].continuum-notification .notification-icon {
+  color: hsl(var(--notification-tone));
+  width: 22px;
+  height: 22px;
+  margin: 1px 0 0;
+  flex-shrink: 0;
+}
+.notification-icon svg { width: 22px; height: 22px; }
+[data-sonner-toast].continuum-notification [data-content] { min-width: 0; gap: 5px; }
+[data-sonner-toast].continuum-notification .notification-title {
+  color: hsl(var(--notification-tone));
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+[data-sonner-toast].continuum-notification .notification-description {
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  line-height: 19px;
+  overflow-wrap: anywhere;
+}
+[data-sonner-toast].continuum-notification .notification-close {
+  top: 12px;
+  right: 10px;
+  left: auto;
+  transform: none;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+}
+.notification-close svg { width: 14px; height: 14px; }
+[data-sonner-toast].continuum-notification .notification-action {
+  background: hsl(var(--secondary));
+  color: hsl(var(--foreground));
+}
+[data-sonner-toast].continuum-notification::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: hsl(var(--notification-tone));
+  transform-origin: left;
+  animation: notification-countdown 5s linear forwards;
+}
+[data-sonner-toaster]:hover .continuum-notification::after,
+[data-sonner-toaster]:focus-within .continuum-notification::after,
+.continuum-notification[data-swiping="true"]::after { animation-play-state: paused; }
+@keyframes notification-countdown { to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  [data-sonner-toast].continuum-notification::after { animation-timing-function: steps(5, end); }
 }
 
 @layer base {
@@ -616,6 +701,7 @@
     border-color: hsl(var(--popup-border));
   }
 }
+
 
 @layer utilities {
   ::-webkit-scrollbar { width: 6px; height: 6px; }

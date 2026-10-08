@@ -1,25 +1,35 @@
-import { useTheme } from "next-themes";
 import { Toaster as Sonner, toast } from "sonner";
+import { BellIcon, CheckCircleIcon, ExclamationCircleIcon, ExclamationTriangleIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import { NOTIFICATION_DURATION } from "@/lib/notifications";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
-
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
-      className="toaster group"
+      {...props}
+      className="continuum-notifications"
+      position="bottom-right"
+      duration={NOTIFICATION_DURATION}
+      visibleToasts={3}
+      gap={12}
+      closeButton
+      swipeDirections={["left", "right"]}
+      offset={{ bottom: "calc(96px + env(safe-area-inset-bottom))", right: "24px" }}
+      mobileOffset={{ bottom: "calc(96px + env(safe-area-inset-bottom))", right: "16px" }}
+      icons={{ success: <CheckCircleIcon />, error: <ExclamationCircleIcon />, info: <BellIcon />, warning: <ExclamationTriangleIcon />, close: <XMarkIcon /> }}
       toastOptions={{
+        duration: NOTIFICATION_DURATION,
         classNames: {
-          toast:
-            "group toast group-[.toaster]:bg-background group-[.toaster]:text-foreground group-[.toaster]:border-border/10 group-[.toaster]:shadow-lg",
-          description: "group-[.toast]:text-muted-foreground",
-          actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
-          cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
+          toast: "continuum-notification",
+          title: "notification-title",
+          description: "notification-description",
+          icon: "notification-icon",
+          closeButton: "notification-close",
+          actionButton: "notification-action",
+          cancelButton: "notification-action",
         },
       }}
-      {...props}
     />
   );
 };

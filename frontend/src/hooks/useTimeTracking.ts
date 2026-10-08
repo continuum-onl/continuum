@@ -60,6 +60,7 @@ class TimerManager {
   private listeners = new Set<() => void>();
   private snapshotCache: ReadonlyMap<string, PersistedTimer> = new Map();
   private swReady = false;
+  private timerWorker: ServiceWorker | null = null;
 
   static getInstance(): TimerManager {
     if (!TimerManager.instance) TimerManager.instance = new TimerManager();
@@ -70,6 +71,13 @@ class TimerManager {
     if (typeof window === 'undefined') return;
     this.hydrate();
     this.initServiceWorker();
+    navigator.serviceWorker?.addEventListener('controllerchange', () => {
+      this.timerWorker = navigator.serviceWorker.controller;
+      this.swReady = this.timerWorker !== null;
+      if (this.swReady) {
+        this.timers.forEach((timer) => this.swSend('START_TIMER', timer));
+      }
+    });
 
     // Recompute / re-broadcast when tab becomes visible or window focuses again.
     const refresh = () => this.notify();
@@ -129,29 +137,19 @@ class TimerManager {
   private async initServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
 
-    const currentController = navigator.serviceWorker.controller;
-    if (
-      currentController &&
-      !currentController.scriptURL.endsWith('/timer-service-worker.js')
-    ) {
-      // A different SW already controls the page (likely the PWA main worker).
-      // Don't try to register the timer SW on the same root scope again.
-      return;
-    }
-
     try {
-      await navigator.serviceWorker.register('/timer-service-worker.js');
-      this.swReady = true;
-      // Re-arm SW for any persisted timers.
+      const registration = await navigator.serviceWorker.ready;
+      this.timerWorker = navigator.serviceWorker.controller ?? registration.active;
+      this.swReady = this.timerWorker !== null;
       this.timers.forEach((t) => this.swSend('START_TIMER', t));
     } catch (err) {
-      console.warn('Timer service worker registration failed:', err);
+      console.warn('Timer service worker initialization failed:', err);
     }
   }
 
   private swSend(type: string, data: unknown) {
     if (!this.swReady) return;
-    navigator.serviceWorker.controller?.postMessage({ type, data });
+    (navigator.serviceWorker.controller ?? this.timerWorker)?.postMessage({ type, data });
   }
 
   // ─── tick ──────────────────────────────────────────────────────────────────
@@ -404,4 +402,3 @@ export const useTimeTracking = () => {
     formatSeconds,
   };
 };
-

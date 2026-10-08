@@ -1,6 +1,7 @@
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import AppLogo from "@/components/landing/AppLogo";
 
 const NotFound = () => {
   const { t } = useLanguage();
@@ -11,24 +12,29 @@ const NotFound = () => {
   }, [location.pathname]);
 
   return (
-    // Alterado para bg-black e texto branco
-    <div className="flex min-h-screen items-center justify-center bg-background text-foreground p-4">
-      <div className="text-center">
-        {/* h1 com fonte serifada para combinar com o "Your second brain" */}
-        <h1 className="mb-4 text-7xl font-medium font-serif italic">{t("au_404_title")}</h1>
-        
-        <p className="mb-8 text-xl text-zinc-400 max-w-md mx-auto">
+    <main className="flex min-h-screen items-center justify-center bg-black px-6 text-[#f3f1eb]">
+      <div className="flex max-w-2xl flex-col items-center text-center">
+        <div className="mb-11 flex items-center gap-2.5">
+          <AppLogo className="h-7 w-7" />
+          <span className="font-sans text-xl font-semibold tracking-tight">Continuum</span>
+        </div>
+
+        <h1 className="mb-2 font-sans text-2xl font-semibold tracking-tight sm:text-[26px]">
+          {t("au_404_title")}
+        </h1>
+
+        <p className="mb-6 text-sm leading-6 text-[#bcbab4] sm:text-[15px]">
           {t("au_404_desc")}
         </p>
 
-        <a 
-          href="/" 
-          className="inline-block bg-foreground text-background px-6 py-2 rounded-md font-medium transition-hover hover:bg-zinc-200"
+        <Link
+          to="/"
+          className="rounded-lg bg-[#f3f1eb] px-4 py-2 text-sm font-medium text-[#141414] transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#f3f1eb] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
         >
           {t("au_return_home")}
-        </a>
+        </Link>
       </div>
-    </div>
+    </main>
   );
 };
 

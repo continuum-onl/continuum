@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { notesApi } from "@/lib/api";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useCachedResource } from "@/hooks/useCachedResource";
+import { STALE } from "@/lib/queries";
 
 interface BacklinkItem {
   id: string;
@@ -61,23 +62,17 @@ function Section({ label, items, kind }: { label: string; items: BacklinkItem[];
 
 export function BacklinksPanel({ noteId }: BacklinksPanelProps) {
   const { t } = useLanguage();
-  const [data, setData] = useState<BacklinksData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!noteId) return;
-    setLoading(true);
-    notesApi
-      .getBacklinks(noteId)
-      .then((res) => {
-        setData({
-          linkedMentions: Array.isArray(res.data?.linkedMentions) ? res.data.linkedMentions : [],
-          unlinkedMentions: Array.isArray(res.data?.unlinkedMentions) ? res.data.unlinkedMentions : [],
-        });
-      })
-      .catch(() => setData({ linkedMentions: [], unlinkedMentions: [] }))
-      .finally(() => setLoading(false));
-  }, [noteId]);
+  const { data, loading } = useCachedResource<BacklinksData>(
+    ["notes", "backlinks", noteId],
+    async () => {
+      const response = await notesApi.getBacklinks(noteId);
+      return {
+        linkedMentions: Array.isArray(response.data?.linkedMentions) ? response.data.linkedMentions : [],
+        unlinkedMentions: Array.isArray(response.data?.unlinkedMentions) ? response.data.unlinkedMentions : [],
+      };
+    },
+    { staleTime: STALE.detail },
+  );
 
   if (loading) {
     return (
@@ -89,8 +84,8 @@ export function BacklinksPanel({ noteId }: BacklinksPanelProps) {
     );
   }
 
-  const linked = data?.linkedMentions || [];
-  const unlinked = data?.unlinkedMentions || [];
+  const linked = data?.linkedMentions ?? [];
+  const unlinked = data?.unlinkedMentions ?? [];
   const isEmpty = linked.length === 0 && unlinked.length === 0;
 
   return (

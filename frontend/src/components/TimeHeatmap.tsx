@@ -1,9 +1,12 @@
-import { useMemo, useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef, useId } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import { timeTrackingApi } from '@/lib/api';
 import { useTimeTracking, type TimeEntry } from '@/hooks/useTimeTracking';
 import { useTimerGoal } from '@/hooks/useTimerGoal';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   /** Optional entityId filter; when omitted, aggregates across user. */
@@ -43,6 +46,69 @@ const LEVEL_BG = [
   'bg-foreground/90',
 ];
 
+const DURATION_WHEEL_ROW_HEIGHT = 48;
+
+function DurationWheel({
+  label,
+  value,
+  max,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  max: number;
+  onChange: (value: number) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const wheelId = useId();
+  const initialValue = useRef(value);
+  const values = useMemo(() => Array.from({ length: max + 1 }, (_, index) => index), [max]);
+
+  useEffect(() => {
+    if (ref.current) ref.current.scrollTop = initialValue.current * DURATION_WHEEL_ROW_HEIGHT;
+  }, []);
+
+  const syncValue = () => {
+    if (!ref.current) return;
+    const next = Math.max(0, Math.min(max, Math.round(ref.current.scrollTop / DURATION_WHEEL_ROW_HEIGHT)));
+    onChange(next);
+  };
+
+  return (
+    <div className="min-w-0 flex-1 text-center">
+      <p className="mb-2 text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">{label}</p>
+      <div
+        ref={ref}
+        role="listbox"
+        aria-label={label}
+        aria-activedescendant={`${wheelId}-${value}`}
+        onScroll={syncValue}
+        className="h-36 snap-y snap-mandatory overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        <div aria-hidden="true" className="h-12" />
+        {values.map((option) => (
+          <button
+            key={option}
+            id={`${wheelId}-${option}`}
+            type="button"
+            role="option"
+            aria-selected={option === value}
+            onClick={() => ref.current?.scrollTo({ top: option * DURATION_WHEEL_ROW_HEIGHT, behavior: "smooth" })}
+            className={`flex h-12 w-full snap-center items-center justify-center border-y text-2xl tabular-nums transition-colors ${
+              option === value
+                ? "border-foreground/30 font-semibold text-foreground"
+                : "border-transparent text-muted-foreground/50"
+            }`}
+          >
+            {String(option).padStart(2, "0")}
+          </button>
+        ))}
+        <div aria-hidden="true" className="h-12" />
+      </div>
+    </div>
+  );
+}
+
 interface HoverCell {
   key: string;
   seconds: number;
@@ -72,7 +138,10 @@ export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
   const [goalDraft, setGoalDraft] = useState<string>(String(goalMinutes));
 
   const [adding, setAdding] = useState(false);
-  const [entryMin, setEntryMin] = useState<string>('30');
+  const [entryDate, setEntryDate] = useState<string>(() => dateKey(new Date()));
+  const [entryHours, setEntryHours] = useState(0);
+  const [entryMinutes, setEntryMinutes] = useState(30);
+  const [entrySeconds, setEntrySeconds] = useState(0);
   const [entryError, setEntryError] = useState<string | null>(null);
 
   const goalSeconds = goalMinutes * 60;
@@ -163,23 +232,32 @@ export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
   const submitEntry = async () => {
     setEntryError(null);
     if (!entityId) return;
-    const minutes = parseInt(entryMin, 10);
-    if (!Number.isFinite(minutes) || minutes <= 0) {
-      setEntryError(t('tm_enter_positive_minutes'));
+    const durationSeconds = entryHours * 3600 + entryMinutes * 60 + entrySeconds;
+    if (durationSeconds <= 0) {
+      setEntryError(t('tm_duration_must_be_positive'));
+      return;
+    }
+    const maxDate = dateKey(new Date());
+    if (!entryDate || entryDate > maxDate) {
+      setEntryError(t('tm_future_dates_not_allowed'));
       return;
     }
     try {
       await addTimeAsync({
         entityId,
-        date: dateKey(new Date()),
-        durationSeconds: minutes * 60,
+        date: entryDate,
+        durationSeconds,
       });
       await qc.invalidateQueries({ queryKey: ['timeTracking'] });
       setAdding(false);
-      setEntryMin('30');
-    } catch (err: any) {
+      setEntryHours(0);
+      setEntryMinutes(30);
+      setEntrySeconds(0);
+      setEntryDate(dateKey(new Date()));
+    } catch (err: unknown) {
       console.error('Failed to add entry:', err);
-      setEntryError(err?.response?.data?.message || err?.message || t('tm_failed_to_add_entry'));
+      const serverMessage = isAxiosError<{ message?: string }>(err) ? err.response?.data?.message : undefined;
+      setEntryError(serverMessage || (err instanceof Error ? err.message : t('tm_failed_to_add_entry')));
     }
   };
 
@@ -214,13 +292,13 @@ export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
   };
 
   return (
-    <div className="rounded-xl border border-border/10 bg-foreground/[0.02] p-4 sm:p-6 relative">
+    <section className="relative py-5 sm:py-6">
       <div className="flex items-baseline justify-between gap-3 mb-4 flex-wrap">
         <h3 className="text-xs uppercase tracking-widest text-muted-foreground font-mono">
           {t('tm_activity_heatmap')}
         </h3>
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] text-muted-foreground font-mono">
+          <span className="whitespace-normal text-[10px] text-muted-foreground font-mono">
             {t('tm_active_days_summary', { count: activeDays, time: fmtHM(totalSeconds) })}
           </span>
           {editingGoal ? (
@@ -249,7 +327,7 @@ export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
                 setGoalDraft(String(goalMinutes));
                 setEditingGoal(true);
               }}
-              className="text-[10px] font-mono text-muted-foreground hover:text-foreground border border-border/10 hover:border-border/25 rounded px-1.5 py-0.5 transition"
+              className="max-w-full whitespace-normal rounded-md bg-secondary px-2 py-1 text-left text-[10px] font-mono text-secondary-foreground/70 transition hover:bg-secondary/75 hover:text-secondary-foreground"
               title={t('tm_set_daily_goal')}
             >
               {t('tm_goal_label', { time: fmtHM(goalSeconds) })}
@@ -259,45 +337,60 @@ export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
             <button
               onClick={() => {
                 setEntryError(null);
-                setAdding((v) => !v);
+                setEntryDate(dateKey(new Date()));
+                setEntryHours(0);
+                setEntryMinutes(30);
+                setEntrySeconds(0);
+                setAdding(true);
               }}
-              className="text-[10px] font-mono text-muted-foreground hover:text-foreground border border-border/10 hover:border-border/25 rounded px-1.5 py-0.5 transition"
+              className="whitespace-normal rounded-md bg-secondary px-2 py-1 text-[10px] font-mono text-secondary-foreground/70 transition hover:bg-secondary/75 hover:text-secondary-foreground"
               title={t('tm_add_manual_entry_title')}
             >
-              {adding ? t('tm_cancel_short') : t('tm_add_entry_short')}
+              {t('tm_add_entry_short')}
             </button>
           )}
         </div>
       </div>
 
-      {adding && entityId && (
-        <div className="mb-4 rounded-lg border border-border/10 bg-foreground/[0.02] p-2.5">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="px-2 py-1 text-[11px] font-mono text-muted-foreground border border-border/10 rounded">
-              {t('tm_today_label', { date: dateKey(new Date()) })}
-            </span>
-            <input
-              type="number"
-              min={1}
-              value={entryMin}
-              onChange={(e) => setEntryMin(e.target.value)}
-              placeholder="minutes"
-              className="w-20 px-2 py-1 text-[11px] font-mono bg-foreground/[0.04] border border-border/15 rounded text-foreground text-right focus:outline-none focus:border-border/30"
-            />
-            <span className="text-[10px] font-mono text-muted-foreground">{t('tm_min')}</span>
-            <button
-              onClick={submitEntry}
-              disabled={isAdding}
-              className="ml-auto px-2.5 py-1 text-[11px] font-mono bg-foreground text-background rounded hover:bg-foreground/90 transition disabled:opacity-50"
-            >
-              {isAdding ? '...' : t('tm_add')}
-            </button>
+      <Dialog open={adding && !!entityId} onOpenChange={(open) => {
+        setAdding(open);
+        if (!open) setEntryError(null);
+      }}>
+        <DialogContent
+          viewportAware={false}
+          className="!left-0 !top-auto !bottom-0 !translate-x-0 !translate-y-0 max-h-[min(82dvh,620px)] w-full max-w-none gap-0 overflow-y-auto rounded-b-none rounded-t-3xl border-x-0 border-b-0 p-0 pb-[env(safe-area-inset-bottom)]"
+          style={{ top: "auto", bottom: 0, transform: "none" }}
+        >
+          <DialogHeader className="border-b border-border/10 px-5 py-4 text-center">
+            <DialogTitle className="text-lg">{t('tm_add_manual_entry_title')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-5 px-5 py-5">
+            <label className="block space-y-2">
+              <span className="text-xs font-medium text-muted-foreground">{t('tm_date')}</span>
+              <input
+                type="date"
+                value={entryDate}
+                max={dateKey(new Date())}
+                onChange={(event) => setEntryDate(event.target.value)}
+                aria-label={t('tm_date')}
+                className="h-12 w-full rounded-xl border border-border/15 bg-foreground/[0.03] px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </label>
+            <fieldset>
+              <legend className="mb-2 text-xs font-medium text-muted-foreground">{t('tm_duration')}</legend>
+              <div className="flex items-center gap-2">
+                <DurationWheel label={t('tm_hours_short')} value={entryHours} max={99} onChange={setEntryHours} />
+                <DurationWheel label={t('tm_minutes_short')} value={entryMinutes} max={59} onChange={setEntryMinutes} />
+                <DurationWheel label={t('tm_seconds_short')} value={entrySeconds} max={59} onChange={setEntrySeconds} />
+              </div>
+            </fieldset>
+            {entryError && <p role="alert" className="text-sm text-destructive">{entryError}</p>}
+            <Button type="button" onClick={submitEntry} disabled={isAdding} className="h-12 w-full rounded-xl">
+              {isAdding ? t('tm_saving_entry') : t('tm_add')}
+            </Button>
           </div>
-          {entryError && (
-            <p className="mt-2 text-[10px] font-mono text-red-400">{entryError}</p>
-          )}
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {isLoading ? (
         <div className="h-32" />
@@ -385,6 +478,6 @@ export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }
