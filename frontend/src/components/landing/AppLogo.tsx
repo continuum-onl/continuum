@@ -8,7 +8,7 @@ const AppLogo = forwardRef<HTMLImageElement, AppLogoProps>(({ className = "w-7 h
   return (
     <img
       ref={ref}
-      src="/favicon.png"
+      src="/icon-transparent.png"
       alt="Continuum"
       className={`${className} object-contain`}
       aria-hidden="true"

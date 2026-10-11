@@ -180,7 +180,7 @@ class TimerManager {
   }
 
   // ─── public ops ────────────────────────────────────────────────────────────
-  startTimer(timerId: string, entityId: string, initialElapsed = 0) {
+  startTimer(timerId: string, entityId: string, initialElapsed = 0, syncWorker = true) {
     // Replace any existing timer for this entity
     const record: PersistedTimer = {
       timerId,
@@ -190,8 +190,30 @@ class TimerManager {
     };
     this.timers.set(entityId, record);
     this.persist();
-    this.swSend('START_TIMER', record);
+    if (syncWorker) this.swSend('START_TIMER', record);
     this.ensureTick();
+    this.notify();
+  }
+
+  confirmTimerStart(entityId: string, optimisticTimerId: string, timerId: string, initialElapsed = 0) {
+    const timer = this.timers.get(entityId);
+    if (!timer || timer.timerId !== optimisticTimerId) return;
+
+    timer.timerId = timerId;
+    timer.startTime = Date.now();
+    timer.initialElapsed = initialElapsed;
+    this.timers.set(entityId, timer);
+    this.persist();
+    this.swSend('START_TIMER', timer);
+    this.notify();
+  }
+
+  rollbackTimerStart(entityId: string, optimisticTimerId: string) {
+    const timer = this.timers.get(entityId);
+    if (!timer || timer.timerId !== optimisticTimerId) return;
+
+    this.timers.delete(entityId);
+    this.persist();
     this.notify();
   }
 
@@ -322,12 +344,24 @@ export const useTimeTracking = () => {
   const startTimerMutation = useMutation({
     mutationFn: (entityId: string) =>
       timeTrackingApi.startTimer(entityId).then((r) => r.data as TimerSession),
-    onSuccess: (data, entityId) => {
+    onMutate: (entityId) => {
+      const optimisticTimerId = `optimistic-${entityId}-${Date.now()}`;
+      timerManager.startTimer(optimisticTimerId, entityId, 0, false);
+      return { entityId, optimisticTimerId };
+    },
+    onSuccess: (data, _entityId, context) => {
       const initialElapsed = Math.floor(data.elapsedSeconds || 0);
-      timerManager.startTimer(data.id, entityId, initialElapsed);
+      if (context) {
+        timerManager.confirmTimerStart(context.entityId, context.optimisticTimerId, data.id, initialElapsed);
+      }
       queryClient.invalidateQueries({ queryKey: ['timeTracking'] });
     },
-    onError: (e) => console.error('Failed to start timer:', e),
+    onError: (e, _entityId, context) => {
+      if (context) {
+        timerManager.rollbackTimerStart(context.entityId, context.optimisticTimerId);
+      }
+      console.error('Failed to start timer:', e);
+    },
   });
 
   const stopTimerMutation = useMutation({
@@ -371,7 +405,7 @@ export const useTimeTracking = () => {
     getAllSummaries,
     getActiveTimer,
 
-    startTimer: startTimerMutation.mutate,
+    startTimer: startTimerMutation.mutateAsync,
     startTimerAsync: startTimerMutation.mutateAsync,
     stopTimer: stopTimerMutation.mutate,
     stopTimerAsync: stopTimerMutation.mutateAsync,

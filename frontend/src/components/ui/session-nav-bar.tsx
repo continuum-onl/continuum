@@ -1,4 +1,3 @@
-import { TrashIcon as TrashNav } from "@heroicons/react/24/outline";
 "use client";
 
 import { cn } from "@/lib/utils";
@@ -36,6 +35,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "@/contexts/ThemeContext";
 // dropdown-menu not used here anymore
 
 const sidebarVariants = {
@@ -76,7 +76,6 @@ const trackingNav: NavItem[] = [
 const exploreNav: NavItem[] = [
   { to: "/insights", label: "nav_insights", icon: BarChart3, iconSolid: BarChart3Solid },
   { to: "/graph", label: "nav_graph", icon: GlobeAlt, iconSolid: GlobeAltSolid },
-  { to: "/trash", label: "nav_trash", icon: TrashNav, iconSolid: TrashNav },
 ];
 
 function SidebarLink({
@@ -124,6 +123,7 @@ export function SessionNavBar() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { t } = useLanguage();
+  const { theme } = useTheme();
 
   const initial = (user?.username || user?.email || "U").trim().charAt(0).toUpperCase();
   const display = user?.username || user?.email?.split("@")[0] || "Guest";
@@ -150,7 +150,7 @@ export function SessionNavBar() {
             className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-sidebar-accent"
           >
             <img
-              src="/favicon.ico"
+              src={theme === "LIGHT" ? "/icon-light.png" : "/icon-transparent.png"}
               alt="Continuum"
               className="h-6 w-6 shrink-0 rounded object-contain"
             />

@@ -162,7 +162,14 @@ public class MarkdownImportOrchestrator {
                 errors.add(up.filename() + ": " + e.getMessage());
             }
         }
-        return new ImportPreviewResponse(previewFiles, new ArrayList<>(aggregated.values()), errors, skipped);
+        // Only suggest entities that appear 2+ times across the import (or already exist).
+        aggregated.values().removeIf(c -> !c.existing() && c.occurrences() < 2);
+        java.util.Set<String> kept = aggregated.keySet();
+        List<ImportPreviewResponse.PreviewFile> filteredFiles = previewFiles.stream()
+                .map(f -> new ImportPreviewResponse.PreviewFile(f.filename(), f.title(), f.content(),
+                        f.candidateKeys().stream().filter(kept::contains).toList(), f.wordCount()))
+                .toList();
+        return new ImportPreviewResponse(new ArrayList<>(filteredFiles), new ArrayList<>(aggregated.values()), errors, skipped);
     }
 
     private static String mergeConfidence(String a, String b) {

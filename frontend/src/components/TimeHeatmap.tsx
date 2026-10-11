@@ -5,7 +5,7 @@ import { timeTrackingApi } from '@/lib/api';
 import { useTimeTracking, type TimeEntry } from '@/hooks/useTimeTracking';
 import { useTimerGoal } from '@/hooks/useTimerGoal';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import SmoothDrawer from '@/components/ui/smooth-drawer';
 import { Button } from '@/components/ui/button';
 
 interface Props {
@@ -109,6 +109,58 @@ function DurationWheel({
   );
 }
 
+function DurationInputs({
+  hours,
+  minutes,
+  seconds,
+  maxHours,
+  onHoursChange,
+  onMinutesChange,
+  onSecondsChange,
+  labels,
+}: {
+  hours: number;
+  minutes: number;
+  seconds: number;
+  maxHours: number;
+  onHoursChange: (value: number) => void;
+  onMinutesChange: (value: number) => void;
+  onSecondsChange: (value: number) => void;
+  labels: { hours: string; minutes: string; seconds: string };
+}) {
+  const fields = [
+    { label: labels.hours, value: hours, max: maxHours, onChange: onHoursChange },
+    { label: labels.minutes, value: minutes, max: 59, onChange: onMinutesChange },
+    { label: labels.seconds, value: seconds, max: 59, onChange: onSecondsChange },
+  ];
+
+  return (
+    <div className="hidden grid-cols-3 gap-3 sm:grid">
+      {fields.map(({ label, value, max, onChange }) => (
+        <label key={label} className="space-y-2">
+          <span className="block text-center text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
+            {label}
+          </span>
+          <input
+            type="number"
+            min={0}
+            max={max}
+            step={1}
+            inputMode="numeric"
+            value={value}
+            onChange={(event) => {
+              const parsed = Number.parseInt(event.target.value, 10);
+              onChange(Number.isFinite(parsed) ? Math.max(0, Math.min(max, parsed)) : 0);
+            }}
+            aria-label={label}
+            className="h-12 w-full rounded-xl border border-border/15 bg-foreground/[0.03] px-3 text-center text-lg tabular-nums text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </label>
+      ))}
+    </div>
+  );
+}
+
 interface HoverCell {
   key: string;
   seconds: number;
@@ -133,9 +185,12 @@ export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
   const hoverRef = useRef<HoverCell | null>(null);
   hoverRef.current = hover;
 
-  const { goalMinutes, setGoal } = useTimerGoal(entityId);
+  const { goalMinutes, setGoal, isSaving: isSavingGoal } = useTimerGoal(entityId);
   const [editingGoal, setEditingGoal] = useState(false);
-  const [goalDraft, setGoalDraft] = useState<string>(String(goalMinutes));
+  const [goalHours, setGoalHours] = useState(0);
+  const [goalMins, setGoalMins] = useState(0);
+  const [goalSecs, setGoalSecs] = useState(0);
+  const [goalError, setGoalError] = useState<string | null>(null);
 
   const [adding, setAdding] = useState(false);
   const [entryDate, setEntryDate] = useState<string>(() => dateKey(new Date()));
@@ -223,9 +278,13 @@ export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
 
   const activeDays = byDay.size;
 
-  const commitGoal = () => {
-    const n = parseInt(goalDraft, 10);
-    if (Number.isFinite(n) && n > 0) setGoal(n);
+  const submitGoal = () => {
+    const totalSeconds = goalHours * 3600 + goalMins * 60 + goalSecs;
+    if (totalSeconds <= 0) {
+      setGoalError(t('tm_duration_must_be_positive'));
+      return;
+    }
+    setGoal(Math.max(1, Math.round(totalSeconds / 60)));
     setEditingGoal(false);
   };
 
@@ -251,7 +310,7 @@ export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
       await qc.invalidateQueries({ queryKey: ['timeTracking'] });
       setAdding(false);
       setEntryHours(0);
-      setEntryMinutes(30);
+      setEntryMinutes(0);
       setEntrySeconds(0);
       setEntryDate(dateKey(new Date()));
     } catch (err: unknown) {
@@ -301,45 +360,26 @@ export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
           <span className="whitespace-normal text-[10px] text-muted-foreground font-mono">
             {t('tm_active_days_summary', { count: activeDays, time: fmtHM(totalSeconds) })}
           </span>
-          {editingGoal ? (
-            <span className="inline-flex items-center gap-1.5">
-              <input
-                type="number"
-                min={1}
-                value={goalDraft}
-                onChange={(e) => setGoalDraft(e.target.value)}
-                onBlur={commitGoal}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') commitGoal();
-                  if (e.key === 'Escape') {
-                    setGoalDraft(String(goalMinutes));
-                    setEditingGoal(false);
-                  }
-                }}
-                autoFocus
-                className="w-14 px-1.5 py-0.5 text-[10px] font-mono bg-foreground/[0.04] border border-border/15 rounded text-foreground text-right focus:outline-none focus:border-border/30"
-              />
-              <span className="text-[10px] text-muted-foreground font-mono">{t('tm_min_per_day')}</span>
-            </span>
-          ) : (
-            <button
-              onClick={() => {
-                setGoalDraft(String(goalMinutes));
-                setEditingGoal(true);
-              }}
-              className="max-w-full whitespace-normal rounded-md bg-secondary px-2 py-1 text-left text-[10px] font-mono text-secondary-foreground/70 transition hover:bg-secondary/75 hover:text-secondary-foreground"
-              title={t('tm_set_daily_goal')}
-            >
-              {t('tm_goal_label', { time: fmtHM(goalSeconds) })}
-            </button>
-          )}
+          <button
+            onClick={() => {
+              setGoalError(null);
+              setGoalHours(0);
+              setGoalMins(0);
+              setGoalSecs(0);
+              setEditingGoal(true);
+            }}
+            className="whitespace-normal rounded-md bg-secondary px-2 py-1 text-[10px] font-mono text-secondary-foreground/70 transition hover:bg-secondary/75 hover:text-secondary-foreground"
+            title={t('tm_set_daily_goal')}
+          >
+            {t('tm_goal_label', { time: fmtHM(goalSeconds) })}
+          </button>
           {entityId && (
             <button
               onClick={() => {
                 setEntryError(null);
                 setEntryDate(dateKey(new Date()));
                 setEntryHours(0);
-                setEntryMinutes(30);
+                setEntryMinutes(0);
                 setEntrySeconds(0);
                 setAdding(true);
               }}
@@ -352,18 +392,10 @@ export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
         </div>
       </div>
 
-      <Dialog open={adding && !!entityId} onOpenChange={(open) => {
+      <SmoothDrawer open={adding && !!entityId} onOpenChange={(open) => {
         setAdding(open);
         if (!open) setEntryError(null);
-      }}>
-        <DialogContent
-          viewportAware={false}
-          className="!left-0 !top-auto !bottom-0 !translate-x-0 !translate-y-0 max-h-[min(82dvh,620px)] w-full max-w-none gap-0 overflow-y-auto rounded-b-none rounded-t-3xl border-x-0 border-b-0 p-0 pb-[env(safe-area-inset-bottom)]"
-          style={{ top: "auto", bottom: 0, transform: "none" }}
-        >
-          <DialogHeader className="border-b border-border/10 px-5 py-4 text-center">
-            <DialogTitle className="text-lg">{t('tm_add_manual_entry_title')}</DialogTitle>
-          </DialogHeader>
+      }} title={t('tm_add_manual_entry_title')}>
           <div className="space-y-5 px-5 py-5">
             <label className="block space-y-2">
               <span className="text-xs font-medium text-muted-foreground">{t('tm_date')}</span>
@@ -378,19 +410,67 @@ export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
             </label>
             <fieldset>
               <legend className="mb-2 text-xs font-medium text-muted-foreground">{t('tm_duration')}</legend>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 sm:hidden">
                 <DurationWheel label={t('tm_hours_short')} value={entryHours} max={99} onChange={setEntryHours} />
                 <DurationWheel label={t('tm_minutes_short')} value={entryMinutes} max={59} onChange={setEntryMinutes} />
                 <DurationWheel label={t('tm_seconds_short')} value={entrySeconds} max={59} onChange={setEntrySeconds} />
               </div>
+              <DurationInputs
+                hours={entryHours}
+                minutes={entryMinutes}
+                seconds={entrySeconds}
+                maxHours={99}
+                onHoursChange={setEntryHours}
+                onMinutesChange={setEntryMinutes}
+                onSecondsChange={setEntrySeconds}
+                labels={{
+                  hours: t('tm_hours_short'),
+                  minutes: t('tm_minutes_short'),
+                  seconds: t('tm_seconds_short'),
+                }}
+              />
             </fieldset>
             {entryError && <p role="alert" className="text-sm text-destructive">{entryError}</p>}
             <Button type="button" onClick={submitEntry} disabled={isAdding} className="h-12 w-full rounded-xl">
               {isAdding ? t('tm_saving_entry') : t('tm_add')}
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+      </SmoothDrawer>
+
+      <SmoothDrawer open={editingGoal} onOpenChange={(open) => {
+        setEditingGoal(open);
+        if (!open) setGoalError(null);
+      }} title={t('tm_set_daily_goal')}>
+          <div className="space-y-5 px-5 py-5">
+            <fieldset>
+              <legend className="mb-2 text-xs font-medium text-muted-foreground">{t('tm_duration')}</legend>
+              <div className="flex items-center gap-2 sm:hidden">
+                <DurationWheel label={t('tm_hours_short')} value={goalHours} max={23} onChange={setGoalHours} />
+                <DurationWheel label={t('tm_minutes_short')} value={goalMins} max={59} onChange={setGoalMins} />
+                <DurationWheel label={t('tm_seconds_short')} value={goalSecs} max={59} onChange={setGoalSecs} />
+              </div>
+              <DurationInputs
+                hours={goalHours}
+                minutes={goalMins}
+                seconds={goalSecs}
+                maxHours={23}
+                onHoursChange={setGoalHours}
+                onMinutesChange={setGoalMins}
+                onSecondsChange={setGoalSecs}
+                labels={{
+                  hours: t('tm_hours_short'),
+                  minutes: t('tm_minutes_short'),
+                  seconds: t('tm_seconds_short'),
+                }}
+              />
+            </fieldset>
+            {goalError && <p role="alert" className="text-sm text-destructive">{goalError}</p>}
+            <Button type="button" onClick={submitGoal} disabled={isSavingGoal} className="h-12 w-full rounded-xl">
+              {isSavingGoal ? t('tm_saving_entry') : t('tm_set_daily_goal')}
+            </Button>
+          </div>
+      </SmoothDrawer>
+
 
       {isLoading ? (
         <div className="h-32" />

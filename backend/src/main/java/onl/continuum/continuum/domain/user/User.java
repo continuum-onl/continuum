@@ -60,6 +60,11 @@ public class User {
     private PlanType plan = PlanType.FREE;
 
     @Builder.Default
+    private String theme = "CLASSIC";
+
+    private String language;
+
+    @Builder.Default
     private int entityCount = 0;
 
     @Builder.Default
@@ -134,6 +139,15 @@ public class User {
 
     public PlanType getPlan() {
         return plan;
+    }
+
+    public String getTheme() {
+        if (theme == null || "AMOLED".equals(theme)) return "CLASSIC";
+        return theme;
+    }
+
+    public String getLanguage() {
+        return language;
     }
 
     public int getEntityCount() {
@@ -215,6 +229,14 @@ public class User {
 
     public void setPlan(PlanType plan) {
         this.plan = plan;
+    }
+
+    public void setTheme(String theme) {
+        this.theme = theme;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
     }
 
     public void setEntityCount(int entityCount) {

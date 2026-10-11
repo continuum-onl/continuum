@@ -60,7 +60,7 @@ export default function EditorSettingsPage() {
 
   return (
     <AppLayout>
-      <div className="relative h-dvh min-h-[620px] overflow-hidden bg-background">
+      <div className="fixed inset-0 z-0 overflow-hidden bg-background lg:relative lg:inset-auto lg:h-dvh lg:min-h-[620px]">
           <section className="absolute inset-0 overflow-hidden bg-background">
             {wallpaperUrl && (
               <div

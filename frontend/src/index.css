@@ -14,6 +14,8 @@
   :root {
     /* --- Continuum raw tokens (source of truth) --- */
     --bg-base: #000000;
+    --graph-node: #ffffff;
+    --graph-muted: #454545;
     --bg-surface: #0D0D0D;
     --bg-surface-2: #161616;
     --bg-hover: #212121;
@@ -121,76 +123,85 @@
   .light {
     color-scheme: light;
 
-    --bg-base: #FBFAF7;
-    --bg-surface: #FFFFFF;
-    --bg-surface-2: #F4F2ED;
-    --bg-hover: #EDEBE5;
-    --bg-active: #E3E0D8;
-    --bg-selected: rgba(20, 19, 17, 0.06);
+    --bg-base: #F0EDE5;
+    --graph-node: #141414;
+    --graph-muted: #b7b7b7;
+    --bg-surface: #F8F6F0;
+    --bg-surface-2: #E8E4DA;
+    --bg-hover: #E2DED3;
+    --bg-active: #D8D3C7;
+    --bg-selected: rgba(38, 36, 31, 0.07);
 
-    --text-primary: #171613;
-    --text-secondary: #5C5A54;
-    --text-tertiary: #8A8780;
-    --text-disabled: #B5B2AA;
-    --text-on-accent: #FBFAF7;
+    --text-primary: #26241F;
+    --text-secondary: #5F5B52;
+    --text-tertiary: #817C72;
+    --text-disabled: #ADA89D;
+    --text-on-accent: #F0EDE5;
 
-    --accent-solid: #171613;
-    --accent-hover: #000000;
-    --accent-soft: rgba(23, 22, 19, 0.08);
-    --accent-ring: rgba(23, 22, 19, 0.32);
+    --accent-solid: #26241F;
+    --accent-hover: #11100E;
+    --accent-soft: rgba(38, 36, 31, 0.08);
+    --accent-ring: rgba(38, 36, 31, 0.3);
 
-    --background: 40 25% 98%;
-    --foreground: 45 10% 9%;
+    --background: 43.6 26.8% 92%;
+    --foreground: 40 10% 14%;
 
+    --card: 45 31% 96%;
+    --card-foreground: 40 10% 14%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 45 10% 9%;
+    --popover: 45 31% 97%;
+    --popover-foreground: 40 10% 14%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 45 10% 9%;
+    --primary: 40 10% 14%;
+    --primary-foreground: 43.6 26.8% 92%;
 
-    --primary: 45 10% 9%;
-    --primary-foreground: 40 25% 98%;
+    --secondary: 43 23% 87%;
+    --secondary-foreground: 40 10% 14%;
 
-    --secondary: 40 12% 93%;
-    --secondary-foreground: 45 10% 9%;
+    --muted: 43 19% 89%;
+    --muted-foreground: 38 7% 40%;
 
-    --muted: 40 12% 95%;
-    --muted-foreground: 45 5% 36%;
-
-    --accent: 40 12% 93%;
-    --accent-foreground: 45 10% 9%;
+    --accent: 43 23% 87%;
+    --accent-foreground: 40 10% 14%;
 
     --destructive: 355 70% 48%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 45 10% 9%;
-    --input: 45 10% 9%;
-    --ring: 45 10% 9% / 0.32;
+    --border: 40 10% 14%;
+    --input: 40 10% 14%;
+    --ring: 40 10% 14% / 0.3;
 
-    --sidebar-background: 40 25% 98%;
-    --sidebar-foreground: 45 5% 36%;
-    --sidebar-primary: 45 10% 9%;
-    --sidebar-primary-foreground: 40 25% 98%;
-    --sidebar-accent: 40 12% 93%;
-    --sidebar-accent-foreground: 45 10% 9%;
-    --sidebar-border: 45 10% 9%;
-    --sidebar-ring: 45 10% 9% / 0.32;
+    --sidebar-background: 43.6 26.8% 92%;
+    --sidebar-foreground: 38 7% 40%;
+    --sidebar-primary: 40 10% 14%;
+    --sidebar-primary-foreground: 43.6 26.8% 92%;
+    --sidebar-accent: 43 23% 87%;
+    --sidebar-accent-foreground: 40 10% 14%;
+    --sidebar-border: 40 10% 14%;
+    --sidebar-ring: 40 10% 14% / 0.3;
 
     --success: 154 60% 34%;
     --warning: 39 70% 40%;
     --info: 209 70% 45%;
 
-    --bento-dot: 0 0% 0% / 0.025;
-    --bento-border: 0 0% 0% / 0.08;
-    --bento-hover-shadow: 0 0% 0% / 0.05;
-    --bento-gradient-via: 0 0% 0% / 0.03;
+    --bento-dot: 40 10% 14% / 0.035;
+    --bento-border: 40 10% 14% / 0.09;
+    --bento-hover-shadow: 40 10% 14% / 0.06;
+    --bento-gradient-via: 40 10% 14% / 0.025;
 
-    --popup-background: 0 0% 100%;
-    --popup-foreground: 45 10% 9%;
-    --popup-muted: 45 5% 36%;
-    --popup-border: 45 10% 9% / 0.08;
+    --popup-background: 45 31% 97%;
+    --popup-foreground: 40 10% 14%;
+    --popup-muted: 38 7% 40%;
+    --popup-border: 40 10% 14% / 0.1;
+    --notification-neutral: 40 10% 14%;
+    --notification-shadow: 0 12px 36px hsl(40 10% 14% / 0.14);
 
+  }
+
+  .dark.theme-charcoal {
+    --bg-base: #080808;
+    --background: 0 0% 3.14%;
+    --sidebar-background: 0 0% 3.14%;
   }
 
   .dark { color-scheme: dark; }

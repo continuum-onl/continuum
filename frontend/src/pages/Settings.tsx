@@ -26,7 +26,9 @@ import {
 } from "@heroicons/react/24/outline";
 import MarkdownImportDialog from "@/components/import/MarkdownImportDialog";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { LanguageSelector } from "@/components/LanguageSelector";
+import { AppThemeSelector } from "@/components/AppThemeSelector";
 import { useExtrasText, useDeletionStatus } from "@/components/AccountExtras";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -77,16 +79,16 @@ interface ActionRowProps {
 function ActionRow({ icon: Icon, label, description, onClick, href, disabled = false, destructive = false }: ActionRowProps) {
   const content = (
     <>
-      <Icon className={`h-5 w-5 shrink-0 ${destructive ? "text-destructive" : "text-muted-foreground"}`} />
+      <Icon className={`h-5 w-5 shrink-0 transition-colors ${destructive ? "text-destructive" : "text-muted-foreground group-hover:text-foreground"}`} />
       <span className="min-w-0 flex-1 text-left">
-        <span className={`block text-sm font-medium ${destructive ? "text-destructive" : "text-foreground/80"}`}>{label}</span>
+        <span className={`block text-sm font-medium ${destructive ? "text-destructive" : "text-foreground/80 group-hover:text-foreground"}`}>{label}</span>
         {description && <span className="mt-0.5 block truncate text-xs text-muted-foreground">{description}</span>}
       </span>
-      <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+      <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted-foreground/60 transition-[color,opacity,transform] duration-150 group-hover:translate-x-0.5 group-hover:text-foreground group-hover:opacity-100" />
     </>
   );
   const className =
-    "flex h-16 w-full items-center gap-4 py-0 transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-60";
+    "group -mx-3 flex h-16 w-[calc(100%+1.5rem)] items-center gap-4 rounded-xl border border-transparent px-3 py-0 transition-[background-color,border-color,box-shadow,color] duration-150 hover:border-border/10 hover:bg-secondary/60 hover:text-foreground hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60";
 
   if (href) {
     const external = href.startsWith("http");
@@ -106,7 +108,9 @@ function ActionRow({ icon: Icon, label, description, onClick, href, disabled = f
 /* Custom icons */
 
 function VisionIcon({ className }: { className?: string }) {
-  return <img src="/vision-symbol.png" alt="" aria-hidden="true" className={`${className ?? ""} rounded-full object-cover`} />;
+  const { theme } = useTheme();
+  const src = theme === "LIGHT" ? "/vision-symbol-light.png" : "/vision-symbol.png";
+  return <img src={src} alt="" aria-hidden="true" className={`${className ?? ""} rounded-full object-cover`} />;
 }
 
 /* ------------------------------------------------------------------ */
@@ -168,6 +172,8 @@ export default function SettingsPage() {
       toast({
         title: t("import_relinkDoneTitle"),
         description: t("import_relinkDoneDesc", { n: data.connectionsCreated ?? 0, notes: data.notesUpdated ?? 0 }),
+        variant: (data.connectionsCreated ?? 0) > 0 ? "default" : "info",
+        notificationCategory: "entity-relink",
       });
     } catch (error: any) {
       toast({
@@ -212,6 +218,16 @@ export default function SettingsPage() {
     setDeletingNow(true);
     try {
       await authApi.deleteScheduledAccountNow();
+      try {
+        sessionStorage.setItem("continuum.account-deleted", "true");
+      } catch (error) {
+        console.warn("Could not store account deletion notice for the landing page", error);
+        toast({
+          title: t("lp_accountDeletedTitle"),
+          description: t("lp_accountDeletedDescription"),
+          variant: "destructive",
+        });
+      }
       await logout();
       navigate("/", { replace: true });
     } catch (error: unknown) {
@@ -251,6 +267,7 @@ export default function SettingsPage() {
         <Section title={title("preferences")}>
           <ActionRow icon={PencilSquareIcon} label={t("nav_editorSettings")} href="/editor" />
           <LanguageSelector />
+          <AppThemeSelector />
         </Section>
 
         {/* 3. Dados e Integrações */}

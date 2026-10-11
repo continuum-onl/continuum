@@ -149,7 +149,6 @@ export function ScoreEvolutionSection({
               );
             })}
           </div>
-          <div className="pointer-events-none absolute right-0 top-0 h-full w-8 bg-gradient-to-l from-black to-transparent sm:hidden" />
         </div>
 
         <div className="relative h-[260px] w-full sm:h-[320px]">

@@ -317,13 +317,14 @@ interface Props {
   editable?: boolean;
   className?: string;
   currentNoteId?: string;
+  onNoteLinkClick?: (noteId: string) => void;
   onSave?: () => void;
   foldedHeadings?: number[];
   onFoldedHeadingsChange?: (indices: number[]) => void;
 }
 
 export const TiptapEditor = forwardRef<TiptapEditorHandle, Props>(
-  ({ content, onChange, editable = true, className, currentNoteId, onSave, foldedHeadings, onFoldedHeadingsChange }, ref) => {
+  ({ content, onChange, editable = true, className, currentNoteId, onNoteLinkClick, onSave, foldedHeadings, onFoldedHeadingsChange }, ref) => {
     const onFoldChangeRef = useRef(onFoldedHeadingsChange);
     onFoldChangeRef.current = onFoldedHeadingsChange;
     const onChangeRef = useRef(onChange);
@@ -431,17 +432,6 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, Props>(
       editorProps: {
         attributes: {
           class: `continuum-editor max-w-none focus:outline-none min-h-[60vh] ${editable ? "" : "is-readonly"} ${className || ""}`,
-        },
-        handleClickOn: (_view, _pos, node, _nodePos, event) => {
-          const name = node.type.name;
-          if (name !== "mention" && name !== "noteMention") return false;
-          const id = (node.attrs as any)?.id;
-          if (!id) return false;
-          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return false;
-          event.preventDefault();
-          if (name === "noteMention") navigate(`/notes/${id}`);
-          else navigate(`/entities/${id}`);
-          return true;
         },
         handlePaste: (view, event) => {
           const items = event.clipboardData?.items;
@@ -764,7 +754,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, Props>(
               if (!mentionId) return;
               e.preventDefault();
               if (mentionTarget.classList.contains("continuum-note-mention")) {
-                navigate(`/notes/${mentionId}`);
+                onNoteLinkClick?.(mentionId);
               } else {
                 navigate(`/entities/${mentionId}`);
               }

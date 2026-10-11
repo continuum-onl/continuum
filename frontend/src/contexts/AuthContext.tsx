@@ -1,9 +1,14 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
+import axios from "axios";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
 import { authApi } from "@/lib/api";
+import {
+  DEFAULT_APP_THEME,
+  isAppTheme,
+} from "@/lib/app-theme";
 import { resetAllCaches } from "@/lib/query-client";
-import type { Plan, User as AppUser } from "@/types";
+import type { User as AppUser, UserLanguage } from "@/types";
 
 // Lê em tempo de execução, não de build
 const getAPIBaseURL = () => {
@@ -22,9 +27,20 @@ interface AuthContextType {
   logout: () => Promise<void>;
   setTokens: (accessToken: string, refreshToken?: string) => void;
   refreshUser: () => Promise<void>;
+  updatePreferences: (preferences: Partial<Pick<AppUser, "theme" | "language">>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
+const isUserLanguage = (value: unknown): value is UserLanguage =>
+  value === "en" || value === "es" || value === "pt" || value === "fr";
+
+function cacheUser(user: AppUser) {
+  try {
+    localStorage.setItem("auth_user", JSON.stringify(user));
+  } catch (error) {
+    console.warn("Failed to cache user profile", error);
+  }
+}
 
 function getInitialAuthState(): { user: AppUser | null; loading: boolean } {
   try {
@@ -54,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [initialAuth] = useState(getInitialAuthState);
   const [user, setUser] = useState<AppUser | null>(initialAuth.user);
   const [loading, setLoading] = useState(initialAuth.loading);
+  const preferencesWriteQueue = useRef<Promise<void>>(Promise.resolve());
 
   const fetchUser = async (opts: { silent?: boolean } = {}) => {
     try {
@@ -65,6 +82,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           id: data.id ?? data.userId,
           username: data.username ?? data.name ?? data.displayName ?? emailLocal ?? "",
           email: data.email ?? "",
+          theme: isAppTheme(data.theme) ? data.theme : DEFAULT_APP_THEME,
+          language: isUserLanguage(data.language) ? data.language : undefined,
           plan: data.plan ?? data.effectivePlan ?? "FREE",
           emailVerified: data.emailVerified ?? true,
           createdAt: data.createdAt ?? data.created_at ?? data.memberSince,
@@ -78,10 +97,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           calendarSync: Boolean(data.calendarSync),
         };
         setUser(next);
-        try { localStorage.setItem("auth_user", JSON.stringify(next)); } catch {}
       }
     } catch (error: unknown) {
-      const status = (error as any)?.response?.status;
+      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
       // Only 401 means the session is truly invalid. 403 = business rule (plan limits etc).
       // Network errors / 5xx / 403 must NOT clear the session — keep cached user.
       if (status === 401) {
@@ -94,6 +112,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updatePreferences = async (preferences: Partial<Pick<AppUser, "theme" | "language">>) => {
+    if (!user) throw new Error("You must be signed in to update this preference.");
+    const previousUser = user;
+    const nextUser = { ...user, ...preferences };
+    setUser(nextUser);
+
+    const request = preferencesWriteQueue.current
+      .catch(() => undefined)
+      .then(() => authApi.updateMe(preferences))
+      .then(() => undefined);
+    preferencesWriteQueue.current = request.catch(() => undefined);
+
+    try {
+      await request;
+    } catch (error) {
+      setUser((current) => {
+        if (!current || current.id !== previousUser.id) return current;
+        const rollback = { ...current };
+        if (preferences.theme !== undefined && current.theme === preferences.theme) {
+          rollback.theme = previousUser.theme;
+        }
+        if (preferences.language !== undefined && current.language === preferences.language) {
+          rollback.language = previousUser.language;
+        }
+        return rollback;
+      });
+      throw error;
     }
   };
 
@@ -116,6 +164,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener("auth:logout", onLogout);
     return () => window.removeEventListener("auth:logout", onLogout);
   }, []);
+
+  useEffect(() => {
+    if (user) cacheUser(user);
+  }, [user]);
 
   const setTokens = (accessToken: string, _refreshToken?: string) => {
     sessionStorage.setItem("access_token", accessToken);
@@ -171,7 +223,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, loginWithGoogle, register, logout, setTokens, refreshUser: fetchUser }}>
+    <AuthContext.Provider value={{ user, loading, login, loginWithGoogle, register, logout, setTokens, refreshUser: fetchUser, updatePreferences }}>
       {children}
     </AuthContext.Provider>
   );

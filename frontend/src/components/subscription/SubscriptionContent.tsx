@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUsage } from "@/contexts/UsageContext";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTheme } from "@/contexts/ThemeContext";
 import { SubscriptionScreen } from "@/components/ui/subscription-screen";
 import type { Plan } from "@/types";
 import { isUnlimited } from "@/lib/plan";
@@ -22,6 +23,7 @@ export default function SubscriptionContent() {
   const { usage } = useUsage();
   const { toast } = useToast();
   const { t } = useLanguage();
+  const { theme } = useTheme();
   const visionPrice = useVisionPrice();
   const [sub, setSub] = useState<SubInfo | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -128,7 +130,7 @@ export default function SubscriptionContent() {
   return (
     <div className="flex min-h-[100dvh] w-full items-end justify-center">
       <SubscriptionScreen
-        headerImageSrc="/vision-symbol.png"
+        headerImageSrc={theme === "LIGHT" ? "/vision-symbol-light.png" : "/vision-symbol.png"}
         appName="Continuum"
         planType="VISION"
         features={visionBenefits.map((text) => ({ text }))}

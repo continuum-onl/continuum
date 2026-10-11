@@ -1,6 +1,9 @@
 // Types matching Java backend POJOs exactly
 
 export type Plan = "FREE" | "VISION";
+import type { AppTheme } from "@/lib/app-theme";
+export type { AppTheme } from "@/lib/app-theme";
+export type UserLanguage = "en" | "es" | "pt" | "fr";
 
 export interface User {
   id: string;
@@ -9,6 +12,8 @@ export interface User {
   plan: Plan;
   emailVerified: boolean;
   createdAt: string;
+  theme: AppTheme;
+  language?: UserLanguage;
   maxEntities?: number;
   maxNotes?: number;
   historyDays?: number;

@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import onl.continuum.continuum.application.exception.BadRequestException;
 import onl.continuum.continuum.application.service.AuthService;
 import onl.continuum.continuum.application.service.ExportService;
 import onl.continuum.continuum.application.service.UserService;
@@ -20,6 +21,7 @@ import onl.continuum.continuum.infra.security.CustomUserDetails;
 import onl.continuum.continuum.infra.vault.VaultStorageService;
 
 import java.util.Map;
+import java.util.Set;
 import java.nio.charset.StandardCharsets;
 
 @RestController
@@ -61,16 +63,26 @@ public class AccountController {
     }
 
     @PatchMapping("/me")
-    @Operation(summary = "Update profile", description = "Updates the user's username or email address")
+    @Operation(summary = "Update profile", description = "Updates the user's profile and UI preferences")
     public ResponseEntity<Void> updateProfile(
             @AuthenticationPrincipal CustomUserDetails user,
             @RequestBody Map<String, String> body) {
         
-        String username = body.get("username");
-        String email = body.get("email");
+        String theme = body.get("theme");
+        String language = body.get("language");
+        if (theme != null && !Set.of("CLASSIC", "CHARCOAL", "LIGHT").contains(theme)) {
+            throw new BadRequestException("theme must be CLASSIC, CHARCOAL, or LIGHT");
+        }
+        if (language != null && !Set.of("en", "es", "pt", "fr").contains(language)) {
+            throw new BadRequestException("language must be en, es, pt, or fr");
+        }
 
+        String username = body.get("username");
         if (username != null && !username.isBlank()) {
             authService.updateUsername(user.getUserId(), username.trim());
+        }
+        if (theme != null || language != null) {
+            authService.updatePreferences(user.getUserId(), theme, language);
         }
         
         // Email change functionality removed

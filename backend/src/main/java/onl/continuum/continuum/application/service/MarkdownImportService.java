@@ -122,8 +122,16 @@ public class MarkdownImportService {
         detectFromFrontmatter(frontmatter, candidates);
         detectFromPlain(plain, candidates);
 
-        candidates.values().removeIf(c -> "LOW".equals(c.confidence()) && c.occurrences() < 2);
-        candidates.values().removeIf(c -> isNoise(c.name()));
+        Map<String, Candidate> repeatedCandidates = new LinkedHashMap<>();
+        for (Candidate candidate : candidates.values()) {
+            int occurrences = countMentions(plain, candidate.key());
+            if (occurrences >= 2 && !isNoise(candidate.name())) {
+                repeatedCandidates.put(candidate.key(), new Candidate(
+                        candidate.key(), candidate.name(), candidate.suggestedType(),
+                        occurrences, candidate.confidence()));
+            }
+        }
+        candidates = repeatedCandidates;
 
         int wordCount = plain.isBlank() ? 0 : plain.trim().split("\\s+").length;
         boolean hasBody = !plain.trim().isEmpty();
@@ -140,6 +148,18 @@ public class MarkdownImportService {
         if (looksLikePathOrUrl(n)) return true;
         if (FILE_EXT.matcher(n).find()) return true;
         return NOISE.contains(n);
+    }
+
+    private int countMentions(String text, String entityKey) {
+        String[] words = entityKey.split("\\s+");
+        StringJoiner phrase = new StringJoiner("\\s+");
+        for (String word : words) phrase.add(Pattern.quote(word));
+        Pattern mention = Pattern.compile(
+                "(?iu)(?<![\\p{L}\\p{N}_])" + phrase + "(?![\\p{L}\\p{N}_])");
+        Matcher matcher = mention.matcher(text);
+        int occurrences = 0;
+        while (matcher.find()) occurrences++;
+        return occurrences;
     }
 
     private static String stripAccents(String s) {

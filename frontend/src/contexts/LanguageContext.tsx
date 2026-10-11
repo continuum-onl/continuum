@@ -1,7 +1,10 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { mergeModules } from "@/i18n";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import type { UserLanguage } from "@/types";
 
-export type Language = "en" | "es" | "pt" | "fr";
+export type Language = UserLanguage;
 
 export const AVAILABLE_LANGUAGES: { code: Language; label: string; nativeLabel: string }[] = [
   { code: "en", label: "English", nativeLabel: "English" },
@@ -12,11 +15,15 @@ export const AVAILABLE_LANGUAGES: { code: Language; label: string; nativeLabel: 
 
 interface LanguageContextType {
   language: Language;
-  setLanguage: (lang: Language) => void;
+  setLanguage: (lang: Language) => Promise<void>;
   t: (key: string, vars?: Record<string, string | number>) => string;
 }
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+
+function isLanguage(value: unknown): value is Language {
+  return value === "en" || value === "es" || value === "pt" || value === "fr";
+}
 
 // Detect the user's preferred language from browser settings.
 function detectBrowserLanguage(): Language {
@@ -330,6 +337,11 @@ const en = {
   profile_locked: "Locked",
   profile_language: "Language",
   profile_languageDesc: "Change the interface language.",
+  profile_theme: "Theme",
+  profile_themeDesc: "Choose the app's appearance.",
+  profile_themeClassic: "Classic",
+  profile_themeCharcoal: "Charcoal",
+  profile_themeLight: "Light",
   profile_backupOk: "Backup downloaded successfully",
   profile_backupFailed: "Export failed",
   profile_updated: "Profile updated",
@@ -572,6 +584,11 @@ const es: Dict = {
   profile_locked: "Bloqueado",
   profile_language: "Idioma",
   profile_languageDesc: "Cambia el idioma de la interfaz.",
+  profile_theme: "Tema",
+  profile_themeDesc: "Elige la apariencia de la app.",
+  profile_themeClassic: "Clásico",
+  profile_themeCharcoal: "Carbón",
+  profile_themeLight: "Claro",
   profile_backupOk: "Respaldo descargado con éxito",
   profile_backupFailed: "Error al exportar",
   profile_updated: "Perfil actualizado",
@@ -894,6 +911,11 @@ const pt: Dict = {
   profile_locked: "Bloqueado",
   profile_language: "Idioma",
   profile_languageDesc: "Altere o idioma da interface.",
+  profile_theme: "Tema",
+  profile_themeDesc: "Escolha a aparência do app.",
+  profile_themeClassic: "Clássico",
+  profile_themeCharcoal: "Carvão",
+  profile_themeLight: "Claro",
   profile_backupOk: "Backup baixado com sucesso",
   profile_backupFailed: "Falha ao exportar",
   profile_updated: "Perfil atualizado",
@@ -1132,6 +1154,11 @@ const fr: Dict = {
   profile_locked: "Verrouillé",
   profile_language: "Langue",
   profile_languageDesc: "Changer la langue de l'interface.",
+  profile_theme: "Thème",
+  profile_themeDesc: "Choisissez l'apparence de l'app.",
+  profile_themeClassic: "Classique",
+  profile_themeCharcoal: "Charbon",
+  profile_themeLight: "Clair",
   profile_backupOk: "Sauvegarde téléchargée avec succès",
   profile_backupFailed: "Échec de l'export",
   profile_updated: "Profil mis à jour",
@@ -1184,10 +1211,30 @@ function interpolate(str: string, vars?: Record<string, string | number>): strin
 }
 
 export const LanguageProvider = ({ children }: { children: ReactNode }) => {
+  const { user, updatePreferences } = useAuth();
+  const { toast } = useToast();
   const [language, setLanguageState] = useState<Language>(() => {
     if (typeof window === "undefined") return "en";
-    const saved = localStorage.getItem("language") as Language | null;
-    if (saved && ["en", "es", "pt", "fr"].includes(saved)) return saved;
+    let cachedUserLanguage: unknown;
+    try {
+      const cachedUser = localStorage.getItem("auth_user");
+      if (cachedUser) {
+        const parsed: unknown = JSON.parse(cachedUser);
+        if (typeof parsed === "object" && parsed !== null && "language" in parsed) {
+          cachedUserLanguage = parsed.language;
+        }
+      }
+    } catch (error) {
+      console.warn("Failed to read cached user language", error);
+    }
+    if (isLanguage(cachedUserLanguage)) return cachedUserLanguage;
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem("language");
+    } catch (error) {
+      console.warn("Failed to read cached interface language", error);
+    }
+    if (isLanguage(saved)) return saved;
     return detectBrowserLanguage();
   });
 
@@ -1197,11 +1244,40 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [language]);
 
-  const setLanguage = (lang: Language) => {
+  useEffect(() => {
+    if (!user?.language) return;
+    setLanguageState(user.language);
+    try {
+      localStorage.setItem("language", user.language);
+    } catch (error) {
+      console.warn("Failed to sync cached interface language", error);
+    }
+  }, [user?.id, user?.language]);
+
+  const setLanguage = async (lang: Language) => {
+    const previousLanguage = language;
     setLanguageState(lang);
     try {
       localStorage.setItem("language", lang);
-    } catch {}
+    } catch (error) {
+      console.warn("Failed to cache interface language", error);
+    }
+    if (!user) return;
+    try {
+      await updatePreferences({ language: lang });
+    } catch {
+      setLanguageState(previousLanguage);
+      try {
+        localStorage.setItem("language", previousLanguage);
+      } catch (error) {
+        console.warn("Failed to restore cached interface language", error);
+      }
+      toast({
+        title: t("profile_updateFailed"),
+        description: t("common_tryAgain"),
+        variant: "destructive",
+      });
+    }
   };
 
   const t = (key: string, vars?: Record<string, string | number>): string => {
@@ -1212,7 +1288,6 @@ export const LanguageProvider = ({ children }: { children: ReactNode }) => {
     if (value === undefined) {
       if (import.meta.env.DEV && !missingWarned.has(key)) {
         missingWarned.add(key);
-        // eslint-disable-next-line no-console
         console.warn(`[i18n] Missing translation key: "${key}"`);
       }
       return key;

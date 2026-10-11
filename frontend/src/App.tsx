@@ -271,13 +271,13 @@ const App = () => {
         },
       }}
     >
-      <ThemeProvider>
-        <TooltipProvider>
-          <Sonner />
-          <BrowserRouter>
-            <NativeGoogleAuthRedirect />
-            <LanguageProvider>
-              <AuthProvider>
+      <TooltipProvider>
+        <Sonner />
+        <BrowserRouter>
+          <NativeGoogleAuthRedirect />
+          <AuthProvider>
+            <ThemeProvider>
+              <LanguageProvider>
                 <UsageProvider>
                   <EntityProvider>
                     <PrefetchPrimaryData />
@@ -285,11 +285,11 @@ const App = () => {
                     <UpdateDialog />
                   </EntityProvider>
                 </UsageProvider>
-              </AuthProvider>
-            </LanguageProvider>
-          </BrowserRouter>
-        </TooltipProvider>
-      </ThemeProvider>
+              </LanguageProvider>
+            </ThemeProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
       <Analytics />
       <SpeedInsights />
     </PersistQueryClientProvider>

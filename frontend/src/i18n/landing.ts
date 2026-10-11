@@ -12,6 +12,8 @@ export const dict: Module = {
       "Continuum is a second brain app for linked notes: markdown notes, @mentions, an automatic knowledge graph, free native sync and smart resurfacing. A modern Obsidian alternative.",
 
     lp_nav_signIn: "Sign in with Google",
+    lp_accountDeletedTitle: "Account deleted",
+    lp_accountDeletedDescription: "Your account and its data have been permanently deleted.",
 
     lp_hero_badge: "Continuum",
     lp_hero_title: "Your second brain,",
@@ -150,6 +152,8 @@ export const dict: Module = {
       "Continuum es una app de segundo cerebro para notas enlazadas: notas en markdown, @menciones, grafo de conocimiento automático, sincronización nativa gratis y recuperación inteligente. Una alternativa moderna a Obsidian.",
 
     lp_nav_signIn: "Entrar con Google",
+    lp_accountDeletedTitle: "Cuenta eliminada",
+    lp_accountDeletedDescription: "Tu cuenta y sus datos se eliminaron permanentemente.",
 
     lp_hero_badge: "Continuum",
     lp_hero_title: "Tu segundo cerebro,",
@@ -288,6 +292,8 @@ export const dict: Module = {
       "O Continuum é um app de segundo cérebro para notas conectadas: notas em markdown, @menções, grafo de conhecimento automático, sincronização nativa grátis e reaparecimento inteligente. Uma alternativa moderna ao Obsidian.",
 
     lp_nav_signIn: "Entrar",
+    lp_accountDeletedTitle: "Conta excluída",
+    lp_accountDeletedDescription: "Sua conta e os dados foram excluídos permanentemente.",
 
     lp_hero_badge: "Continuum",
     lp_hero_title: "Seu segundo cérebro,",
@@ -426,6 +432,8 @@ export const dict: Module = {
       "Continuum est une app de second cerveau pour des notes liées : notes markdown, @mentions, graphe de connaissances automatique, synchronisation native gratuite et remontée intelligente. Une alternative moderne à Obsidian.",
 
     lp_nav_signIn: "Se connecter avec Google",
+    lp_accountDeletedTitle: "Compte supprimé",
+    lp_accountDeletedDescription: "Votre compte et ses données ont été définitivement supprimés.",
 
     lp_hero_badge: "Continuum",
     lp_hero_title: "Votre second cerveau,",

@@ -182,6 +182,7 @@ export default function NoteEditor() {
   }, [id]);
 
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveInFlightRef = useRef<Promise<boolean> | null>(null);
   const lastSavedJSON = useRef<string>(cachedNote ? JSON.stringify(parseTiptapContent(cachedNote.content)) : "");
   const lastSavedTitle = useRef<string>(cachedNote?.title ?? "");
   const lastSavedType = useRef<string>(cachedNote?.type ?? "");
@@ -416,37 +417,51 @@ export default function NoteEditor() {
   }, [id, isRestoring, navigate, searchParams, toast]);
 
   const doSave = useCallback(async (nextTitle: string, json: any, newType: string) => {
-    if (!id) return;
+    if (!id) return false;
     const jsonStr = JSON.stringify(json);
-    if (nextTitle === lastSavedTitle.current && jsonStr === lastSavedJSON.current && newType === lastSavedType.current) return;
+    if (saveInFlightRef.current) {
+      const saved = await saveInFlightRef.current;
+      if (!saved) return false;
+    }
+    if (nextTitle === lastSavedTitle.current && jsonStr === lastSavedJSON.current && newType === lastSavedType.current) return true;
 
     setSaveStatus("saving");
-    try {
-      const entityIds = extractMentionIds(json);
-      await notesApi.update(id, {
-        title: nextTitle,
-        content: json,
-        entityIds,
-        type: newType,
-      });
+    const savePromise = (async () => {
+      try {
+        const entityIds = extractMentionIds(json);
+        await notesApi.update(id, {
+          title: nextTitle,
+          content: json,
+          entityIds,
+          type: newType,
+        });
 
-      setNote((prev) => prev ? { ...prev, title: nextTitle, content: json, entityIds, type: newType } : null);
-      queryClient.setQueryData(qk.note(id), (previous: NoteData | undefined) => previous ? { ...previous, title: nextTitle, content: json, entityIds, type: newType } : previous);
-      void queryClient.invalidateQueries({ queryKey: qk.notes() });
-      void queryClient.invalidateQueries({ queryKey: qk.graph() });
+        setNote((prev) => prev ? { ...prev, title: nextTitle, content: json, entityIds, type: newType } : null);
+        queryClient.setQueryData(qk.note(id), (previous: NoteData | undefined) => previous ? { ...previous, title: nextTitle, content: json, entityIds, type: newType } : previous);
+        void queryClient.invalidateQueries({ queryKey: qk.notes() });
+        void queryClient.invalidateQueries({ queryKey: qk.graph() });
 
-      lastSavedTitle.current = nextTitle;
-      lastSavedJSON.current = jsonStr;
-      lastSavedType.current = newType;
-      setSaveStatus("saved");
-      setTimeout(() => setSaveStatus("idle"), 2000);
-    } catch (error: any) {
-      setSaveStatus("idle");
-      if (error?.response?.status === 401) {
-        toast({ title: t("ed_session_expired"), variant: "destructive" });
-      } else {
-        toast({ title: t("ed_error_saving"), variant: "destructive" });
+        lastSavedTitle.current = nextTitle;
+        lastSavedJSON.current = jsonStr;
+        lastSavedType.current = newType;
+        setSaveStatus("saved");
+        setTimeout(() => setSaveStatus("idle"), 2000);
+        return true;
+      } catch (error: any) {
+        setSaveStatus("idle");
+        if (error?.response?.status === 401) {
+          toast({ title: t("ed_session_expired"), variant: "destructive" });
+        } else {
+          toast({ title: t("ed_error_saving"), variant: "destructive" });
+        }
+        return false;
       }
+    })();
+    saveInFlightRef.current = savePromise;
+    try {
+      return await savePromise;
+    } finally {
+      if (saveInFlightRef.current === savePromise) saveInFlightRef.current = null;
     }
   }, [id, toast]);
 
@@ -492,17 +507,27 @@ export default function NoteEditor() {
   const latestRef = useRef({ title, type, isOptimistic });
   latestRef.current = { title, type, isOptimistic };
 
-  const flushSave = useCallback(() => {
-    const { title: t0, type: ty, isOptimistic: opt } = latestRef.current;
-    if (opt || !id) return;
-    if (autoSaveTimer.current) {
-      clearTimeout(autoSaveTimer.current);
-      autoSaveTimer.current = null;
+  const flushSave = useCallback(async () => {
+    while (true) {
+      const { title: t0, type: ty, isOptimistic: opt } = latestRef.current;
+      if (opt) return true;
+      if (!id) return false;
+      if (autoSaveTimer.current) {
+        clearTimeout(autoSaveTimer.current);
+        autoSaveTimer.current = null;
+      }
+      const json = editorRef.current?.getJSON() ?? currentJSON.current;
+      if (!json) return false;
+      const jsonStr = JSON.stringify(json);
+      if (t0 === lastSavedTitle.current && jsonStr === lastSavedJSON.current && ty === lastSavedType.current) return true;
+      if (!await doSave(t0, json, ty)) return false;
     }
-    const json = editorRef.current?.getJSON() ?? currentJSON.current;
-    if (!json) return;
-    void doSave(t0, json, ty);
   }, [doSave, id]);
+
+  const handleNoteLinkClick = useCallback(async (noteId: string) => {
+    if (!noteId || noteId === id) return;
+    if (await flushSave()) navigate(`/notes/${noteId}`);
+  }, [flushSave, id, navigate]);
 
   useEffect(() => {
     const onVisibility = () => {
@@ -615,14 +640,16 @@ export default function NoteEditor() {
                 style={{ fontSize: `${Math.max(2.2, 3.1 * (noteTitleScale / 100))}rem` }}
               />
 
-              {currentJSON.current && (
+              {currentJSON.current && (!id || note?.id === id) && (
                 <div className="prose prose-invert prose-p:leading-relaxed prose-headings:font-display max-w-none">
                   <TiptapEditor
+                    key={id}
                     ref={editorRef}
                     content={currentJSON.current}
                     onChange={handleEditorChange}
                     editable={!readOnly}
-                    currentNoteId={note?.id}
+                    currentNoteId={id}
+                    onNoteLinkClick={handleNoteLinkClick}
                     onSave={flushSave}
                     foldedHeadings={foldedHeadings}
                     onFoldedHeadingsChange={handleFoldChange}

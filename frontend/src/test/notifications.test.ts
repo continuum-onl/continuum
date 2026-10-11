@@ -21,6 +21,8 @@ describe("shared notification content", () => {
     expect(shouldDisplayNotification("error")).toBe(true);
     expect(shouldDisplayNotification("warning", "limit")).toBe(true);
     expect(shouldDisplayNotification("success", "account-deletion")).toBe(true);
+    expect(shouldDisplayNotification("success", "entity-relink")).toBe(true);
+    expect(shouldDisplayNotification("info", "entity-relink")).toBe(true);
   });
   it("warns at 80 percent for finite plan limits", () => {
     expect(getUsageWarnings(

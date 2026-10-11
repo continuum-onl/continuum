@@ -11,6 +11,7 @@ import AuthDialog from "@/components/auth/AuthDialog";
 import PwaInstallListener from "@/components/pwa/PwaInstallListener";
 import { ScrollGlobe } from "@/components/ui/landing-page";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { toast } from "@/hooks/use-toast";
 import landingEditor from "@/assets/landing-editor.png";
 import landingGraph from "@/assets/landing-graph.jpg";
 import landingInsights from "@/assets/landing-insights.jpg";
@@ -20,6 +21,20 @@ const SITE_URL = "https://continuum.onl/";
 export default function LandingPage() {
   const [authOpen, setAuthOpen] = useState(false);
   const { t, language } = useLanguage();
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("continuum.account-deleted") !== "true") return;
+      sessionStorage.removeItem("continuum.account-deleted");
+      toast({
+        title: t("lp_accountDeletedTitle"),
+        description: t("lp_accountDeletedDescription"),
+        variant: "destructive",
+      });
+    } catch (error) {
+      console.error("Could not display account deletion notice", error);
+    }
+  }, [t]);
 
   const openAuth = () => setAuthOpen(true);
 

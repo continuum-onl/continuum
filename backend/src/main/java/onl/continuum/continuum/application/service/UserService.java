@@ -93,12 +93,20 @@ public class UserService {
     @org.springframework.context.annotation.Lazy
     private SubscriptionService subscriptionService;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private onl.continuum.continuum.infra.email.EmailService emailService;
+
     /** Marks the account for deletion; it can be restored within the grace period. */
     public java.time.Instant scheduleDeletion(String userId) {
         java.time.Instant now = java.time.Instant.now();
         mongoTemplate.updateFirst(Query.query(Criteria.where("_id").is(userId)),
             new Update().set("deletionRequestedAt", now), User.class);
-        return now.plus(java.time.Duration.ofDays(DELETION_GRACE_DAYS));
+        java.time.Instant purgeAt = now.plus(java.time.Duration.ofDays(DELETION_GRACE_DAYS));
+        if (emailService != null) {
+            userRepository.findById(userId).ifPresent(u ->
+                emailService.sendDeletionScheduled(u.getEmail(), u.getUsername(), purgeAt));
+        }
+        return purgeAt;
     }
 
     public void cancelDeletion(String userId) {
@@ -153,6 +161,9 @@ public class UserService {
             mongoTemplate.remove(byUser, c);
         }
         userRepository.deleteById(userId);
+        if (emailService != null) {
+            emailService.sendAccountDeleted(user.getEmail(), user.getUsername());
+        }
     }
 
     public User getById(String userId) {

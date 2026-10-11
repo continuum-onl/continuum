@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useRef, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useCallback, useEffect, useMemo, useRef, useState, type FocusEvent } from "react";
+import SmoothDrawer from "@/components/ui/smooth-drawer";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
@@ -43,6 +43,20 @@ const TYPES: EntityType[] = ["PERSON", "PROJECT", "TOPIC", "ORGANIZATION", "ACTI
 const BLOCKED_EXTENSION_BEFORE_MD = /\.(png|jpe?g|gif|webp|svg|bmp|tiff?|heic|mp3|wav|m4a|ogg|opus|flac|aac|mp4|mov|webm|avi|mkv|pdf|docx?|xlsx?|pptx?|csv|tsv|zip|rar|7z|tar|gz|exe|dmg|apk|html?|css|js|ts|tsx|jsx|json|xml|yaml|yml)$/i;
 const BINARY_MIME = /^(audio|video|image)\//i;
 
+/* Shared visual tokens — same rounded language used by the other drawers. */
+const fieldClass =
+  "h-12 w-full rounded-xl border border-border/15 bg-foreground/[0.03] px-4 text-base text-foreground placeholder:text-muted-foreground transition-colors focus:outline-none focus:ring-2 focus:ring-ring";
+const selectClass =
+  "h-12 rounded-xl border border-border/15 bg-foreground/[0.03] px-3.5 text-base text-foreground/90 transition-colors focus:outline-none focus:ring-2 focus:ring-ring";
+
+/* With the drawer's own keyboard repositioning off, keep the focused field in view. */
+const revealOnFocus = (e: FocusEvent<HTMLElement>) => {
+  const el = e.currentTarget;
+  window.setTimeout(() => el.scrollIntoView({ block: "center", behavior: "smooth" }), 300);
+};
+const optionClass = "bg-[hsl(var(--popup-background))] text-[hsl(var(--popup-foreground))]";
+const panelClass = "rounded-2xl border border-border/10 bg-foreground/[0.03]";
+
 const uploadPath = (file: File) =>
   (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
 
@@ -69,7 +83,7 @@ const tiptapPlainText = (node: unknown): string => {
 };
 
 const normalizeSearchText = (value: string) =>
-  value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+  value.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " ").trim();
 
 const textContainsEntity = (plainText: string, name: string) => {
   const normalizedText = normalizeSearchText(plainText);
@@ -87,11 +101,15 @@ interface Props {
 export default function MarkdownImportDialog({ open, onOpenChange, onImported }: Props) {
   const { toast } = useToast();
   const { t } = useLanguage();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const folderInputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const folderInputRef = useRef<HTMLInputElement | null>(null);
 
   const [step, setStep] = useState<Step>("upload");
   const [busy, setBusy] = useState(false);
+  // True from the tap on "select files/folder" until the browser hands us the files
+  // (or the picker is cancelled). Listing a big folder can take seconds with no feedback.
+  const [picking, setPicking] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const [progress, setProgress] = useState(0);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
   const [decisions, setDecisions] = useState<Record<string, { accept: boolean; type: EntityType; name: string }>>({});
@@ -107,14 +125,25 @@ export default function MarkdownImportDialog({ open, onOpenChange, onImported }:
     setResult(null);
     setProgress(0);
     setBusy(false);
+    setPicking(false);
+    setDragging(false);
     setCustomEntities([]);
     setCustomDraftName("");
     setCustomDraftType("PERSON");
   }, []);
 
   const handleFiles = useCallback(
-    async (fileList: FileList | null) => {
-      if (!fileList || fileList.length === 0) return;
+    async (fileList: ArrayLike<File> | null) => {
+      setPicking(false);
+      if (!fileList || fileList.length === 0) {
+        setProgress(0);
+        return;
+      }
+      // Optimistic: show the loading line right away, then let the browser paint it
+      // before we chew through a potentially huge file list.
+      setBusy(true);
+      setProgress((p) => Math.max(p, 12));
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
       const all = Array.from(fileList);
       const files = all.filter(isStrictMarkdownFile);
       const skipped = all.length - files.length;
@@ -124,6 +153,8 @@ export default function MarkdownImportDialog({ open, onOpenChange, onImported }:
           description: t("import_noMdDesc"),
           variant: "destructive",
         });
+        setBusy(false);
+        setProgress(0);
         return;
       }
       if (skipped > 0) {
@@ -132,8 +163,6 @@ export default function MarkdownImportDialog({ open, onOpenChange, onImported }:
           description: t("import_skippedDesc"),
         });
       }
-      setBusy(true);
-      setProgress(15);
       try {
         const res = await importApi.previewMarkdown(files);
         setProgress(90);
@@ -224,6 +253,8 @@ export default function MarkdownImportDialog({ open, onOpenChange, onImported }:
           n: data.connectionsCreated,
           notes: data.notesUpdated,
         }),
+        variant: data.connectionsCreated > 0 ? "default" : "info",
+        notificationCategory: "entity-relink",
       });
       onImported?.();
     } catch (e: any) {
@@ -269,350 +300,403 @@ export default function MarkdownImportDialog({ open, onOpenChange, onImported }:
     [decisions]
   );
 
+  const loading = busy || picking;
+
+  // Keep the loading line moving while we wait, so it never looks frozen.
+  useEffect(() => {
+    if (!loading || step === "result") return;
+    const id = window.setInterval(() => {
+      setProgress((p) => (p < 85 ? p + Math.max(0.5, (85 - p) * 0.06) : p));
+    }, 250);
+    return () => window.clearInterval(id);
+  }, [loading, step]);
+
+  // Safety net for browsers that never fire the file input's "cancel" event.
+  useEffect(() => {
+    if (!picking) return;
+    const id = window.setTimeout(() => {
+      setPicking(false);
+      setProgress(0);
+    }, 60_000);
+    return () => window.clearTimeout(id);
+  }, [picking]);
+
+  const handlePickerCancel = useCallback(() => {
+    setPicking(false);
+    setProgress(0);
+  }, []);
+
+  const bindFileInput = useCallback(
+    (el: HTMLInputElement | null) => {
+      inputRef.current = el;
+      if (el) el.oncancel = handlePickerCancel;
+    },
+    [handlePickerCancel]
+  );
+
+  const bindFolderInput = useCallback(
+    (el: HTMLInputElement | null) => {
+      folderInputRef.current = el;
+      if (el) el.oncancel = handlePickerCancel;
+    },
+    [handlePickerCancel]
+  );
+
+  const openPicker = useCallback((input: HTMLInputElement | null) => {
+    if (!input) return;
+    // Instant feedback on tap — the browser can take seconds to list a large folder.
+    setPicking(true);
+    setProgress((p) => Math.max(p, 6));
+    input.click();
+  }, []);
+
   return (
-    <Dialog
+    <SmoothDrawer
       open={open}
       onOpenChange={(v) => {
         if (!v) reset();
         onOpenChange(v);
       }}
+      title={t("profile_importMd")}
+      description={t("import_headerDesc")}
+      className="max-w-3xl"
+      repositionInputs={false}
     >
-      <DialogContent className="max-w-3xl w-[calc(100vw-1rem)] sm:w-full max-h-[92vh] sm:max-h-[85vh] p-0 overflow-hidden flex flex-col">
-        <DialogHeader className="space-y-0 p-4 sm:p-6 border-b border-border/10 text-left">
-          <p className="text-[10px] uppercase tracking-[0.32em] text-muted-foreground">{t("import_eyebrow")}</p>
-          <DialogTitle className="font-serif text-xl sm:text-2xl tracking-tight text-foreground mt-2">
-            {t("profile_importMd")}
-          </DialogTitle>
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            {t("import_headerDesc")}
-          </p>
-        </DialogHeader>
-
-        <div className="p-4 sm:p-6 flex-1 overflow-y-auto">
-          {step === "upload" && (
-            <div className="space-y-4">
-              <div
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  handleFiles(e.dataTransfer.files);
-                }}
-                className="border border-dashed border-border/10 rounded-sm p-6 sm:p-10 text-center hover:border-foreground/25 transition-colors"
-              >
-                <ArrowUpTrayIcon className="w-8 h-8 mx-auto text-muted-foreground" />
-                <p className="text-sm text-foreground/80 mt-3">{t("import_dropHere")}</p>
-                <p className="text-xs text-muted-foreground mt-1">{t("import_orPick")}</p>
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center gap-2 mt-5">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => inputRef.current?.click()}
-                    disabled={busy}
-                    className="w-full sm:w-auto"
-                  >
-                    {t("import_selectFiles")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => folderInputRef.current?.click()}
-                    disabled={busy}
-                    className="w-full sm:w-auto"
-                  >
-                    {t("import_selectFolder")}
-                  </Button>
-                </div>
-                <input
-                  ref={inputRef}
-                  type="file"
-                  accept=".md"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => handleFiles(e.target.files)}
-                />
-                <input
-                  ref={folderInputRef}
-                  type="file"
-                  /* @ts-expect-error non-standard */
-                  webkitdirectory=""
-                  directory=""
-                  accept=".md"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => handleFiles(e.target.files)}
-                />
+      <div className="px-5 pb-5 pt-3 sm:px-6">
+        {step === "upload" && (
+          <div className="space-y-4">
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragging(false);
+                handleFiles(e.dataTransfer.files);
+              }}
+              className={
+                "rounded-3xl border-2 border-dashed px-5 py-9 text-center transition-colors sm:px-10 sm:py-12 " +
+                (dragging
+                  ? "border-foreground/40 bg-foreground/[0.06]"
+                  : "border-border/15 bg-foreground/[0.02] hover:border-foreground/25")
+              }
+            >
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-secondary">
+                <ArrowUpTrayIcon className="h-6 w-6 text-foreground/80" />
               </div>
-              {busy && (
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">{t("import_parsing")}</p>
-                  <Progress value={progress} className="h-[2px] bg-accent rounded-none" />
-                </div>
-              )}
-              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/70 pt-2">
-                {t("import_limits")}
-              </p>
+              <p className="mt-4 font-serif text-lg text-foreground">{t("import_dropHere")}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{t("import_orPick")}</p>
+              <div className="mt-6 flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
+                <Button
+                  onClick={() => openPicker(inputRef.current)}
+                  disabled={loading}
+                  className="h-11 w-full rounded-xl px-5 text-sm sm:w-auto"
+                >
+                  {t("import_selectFiles")}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => openPicker(folderInputRef.current)}
+                  disabled={loading}
+                  className="h-11 w-full rounded-xl px-5 text-sm sm:w-auto"
+                >
+                  {t("import_selectFolder")}
+                </Button>
+              </div>
+              <input
+                ref={bindFileInput}
+                type="file"
+                accept=".md"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const picked = Array.from(e.target.files ?? []);
+                  e.target.value = ""; // lets the same selection fire onChange again
+                  handleFiles(picked);
+                }}
+              />
+              <input
+                ref={bindFolderInput}
+                type="file"
+                /* @ts-expect-error non-standard */
+                webkitdirectory=""
+                directory=""
+                accept=".md"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  const picked = Array.from(e.target.files ?? []);
+                  e.target.value = ""; // lets the same selection fire onChange again
+                  handleFiles(picked);
+                }}
+              />
             </div>
-          )}
+            {loading && (
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">{t("import_parsing")}</p>
+                <Progress value={progress} className="h-1.5 rounded-full bg-secondary" />
+              </div>
+            )}
+            <p className="px-1 text-center text-xs leading-relaxed text-muted-foreground/80">{t("import_limits")}</p>
+          </div>
+        )}
 
-          {step === "review" && preview && (
-            <div className="space-y-6">
-              <dl className="grid grid-cols-3 gap-3 text-xs sm:gap-4">
-                <Stat label={t("import_stat_files")} value={preview.files.length} />
-                <Stat label={t("import_stat_candidates")} value={preview.candidates.length} />
-                <Stat label={t("import_stat_accepted")} value={acceptedCount} />
-              </dl>
+        {step === "review" && preview && (
+          <div className="space-y-6">
+            <dl className="grid grid-cols-3 gap-2.5 sm:gap-3">
+              <Stat label={t("import_stat_files")} value={preview.files.length} />
+              <Stat label={t("import_stat_candidates")} value={preview.candidates.length} />
+              <Stat label={t("import_stat_accepted")} value={acceptedCount} />
+            </dl>
 
-              <section className="border-t border-border/10 pt-5">
-                <h3 className="text-[10px] uppercase tracking-[0.32em] text-muted-foreground mb-3">{t("import_stat_files")}</h3>
-                <ul className="space-y-1 max-h-40 overflow-y-auto pr-2">
-                  {preview.files.map((f) => (
-                    <li key={f.filename} className="flex items-center gap-2 text-xs text-foreground/80 py-1 border-b border-border/10">
-                      <DocumentTextIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span className="truncate flex-1">{f.title}</span>
-                      <span className="text-muted-foreground tabular-nums">{f.wordCount} w</span>
-                    </li>
-                  ))}
-                </ul>
-                {preview.skipped && preview.skipped.length > 0 && (
-                  <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/70 mt-2">
-                    {t(preview.skipped.length === 1 ? "import_skippedCount_one" : "import_skippedCount", { n: preview.skipped.length })}
-                  </p>
-                )}
-              </section>
-
-              <section className="border-t border-border/10 pt-5">
-                <h3 className="text-[10px] uppercase tracking-[0.32em] text-muted-foreground mb-3">
-                  {t("import_addOwnTitle")}
-                </h3>
-                <p className="text-[11px] text-muted-foreground mb-3 leading-relaxed">
-                  {t("import_addOwnDesc")}
+            <section className="space-y-3">
+              <h3 className="font-serif text-lg text-foreground">{t("import_stat_files")}</h3>
+              <ul className={`${panelClass} max-h-44 divide-y divide-border/10 overflow-y-auto`}>
+                {preview.files.map((f) => (
+                  <li key={f.filename} className="flex items-center gap-3 px-3.5 py-2.5 text-sm text-foreground/90">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary">
+                      <DocumentTextIcon className="h-4 w-4 text-muted-foreground" />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{f.title}</span>
+                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{f.wordCount} w</span>
+                  </li>
+                ))}
+              </ul>
+              {preview.skipped && preview.skipped.length > 0 && (
+                <p className="px-1 text-xs text-muted-foreground">
+                  {t(preview.skipped.length === 1 ? "import_skippedCount_one" : "import_skippedCount", { n: preview.skipped.length })}
                 </p>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="text"
-                    value={customDraftName}
-                    onChange={(e) => setCustomDraftName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addCustomEntity();
-                      }
-                    }}
-                    placeholder={t("import_addOwnPlaceholder")}
-                    className="flex-1 min-w-0 bg-transparent border border-border/10 text-sm text-foreground placeholder:text-muted-foreground focus:border-foreground/40 focus:outline-none rounded-sm px-3 py-2"
-                  />
+              )}
+            </section>
+
+            <section className="space-y-3">
+              <div className="space-y-1">
+                <h3 className="font-serif text-lg text-foreground">{t("import_addOwnTitle")}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{t("import_addOwnDesc")}</p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <input
+                  type="text"
+                  value={customDraftName}
+                  onChange={(e) => setCustomDraftName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addCustomEntity();
+                    }
+                  }}
+                  onFocus={revealOnFocus}
+                  placeholder={t("import_addOwnPlaceholder")}
+                  className={`${fieldClass} min-w-0 sm:flex-1`}
+                />
+                <div className="flex gap-2">
                   <select
                     value={customDraftType}
                     onChange={(e) => setCustomDraftType(e.target.value as EntityType)}
-                    className="bg-transparent border border-border/10 text-xs text-foreground/80 rounded-sm px-2 py-2 focus:outline-none focus:border-foreground/30"
+                    className={`${selectClass} flex-1 sm:flex-none`}
                   >
                     {TYPES.map((opt) => (
-                      <option key={opt} value={opt} className="bg-[hsl(var(--popup-background))] text-[hsl(var(--popup-foreground))]">
+                      <option key={opt} value={opt} className={optionClass}>
                         {opt}
                       </option>
                     ))}
                   </select>
                   <Button
-                    size="sm"
                     variant="outline"
                     onClick={addCustomEntity}
                     disabled={busy || !customDraftName.trim()}
+                    className="h-12 rounded-xl px-6 text-sm"
                   >
                     {t("import_addBtn")}
                   </Button>
                 </div>
-                {customEntities.length > 0 && (
-                  <ul className="mt-3 flex flex-wrap gap-2">
-                    {customEntities.map((c, i) => (
-                      <li
-                        key={`${c.name}-${i}`}
-                        className="flex items-center gap-2 border border-border/10 bg-accent/60 rounded-sm pl-2 pr-1 py-1"
+              </div>
+              {customEntities.length > 0 && (
+                <ul className="flex flex-wrap gap-2">
+                  {customEntities.map((c, i) => (
+                    <li
+                      key={`${c.name}-${i}`}
+                      className="flex items-center gap-2 rounded-full bg-secondary py-1.5 pl-3.5 pr-1.5"
+                    >
+                      <span className="text-sm text-foreground/90">{c.name}</span>
+                      <span className="text-xs text-muted-foreground">{c.type}</span>
+                      <span className="text-xs text-muted-foreground/80">
+                        {t(c.matches === 1 ? "import_matchesCount_one" : "import_matchesCount", { n: c.matches })}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={t("import_removeEntity", { name: c.name })}
+                        onClick={() => setCustomEntities((s) => s.filter((_, idx) => idx !== i))}
+                        className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
                       >
-                        <span className="text-xs text-foreground/90">{c.name}</span>
-                        <span className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground">
-                          {c.type}
-                        </span>
-                        <span className="text-[9px] uppercase tracking-[0.2em] text-muted-foreground/80">
-                          {t(c.matches === 1 ? "import_matchesCount_one" : "import_matchesCount", { n: c.matches })}
-                        </span>
-                        <button
-                          type="button"
-                          aria-label={t("import_removeEntity", { name: c.name })}
-                          onClick={() =>
-                            setCustomEntities((s) => s.filter((_, idx) => idx !== i))
-                          }
-                          className="text-muted-foreground hover:text-foreground px-1"
-                        >
-                          ×
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
+                        ×
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
 
-              <section className="border-t border-border/10 pt-5">
-                <h3 className="text-[10px] uppercase tracking-[0.32em] text-muted-foreground mb-3">
-                  {t("import_detectedTitle")}
-                </h3>
-                {preview.candidates.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">{t("import_noCandidates")}</p>
-                ) : (
-                  <ul className="space-y-1 max-h-72 overflow-y-auto pr-2">
-                    {preview.candidates.map((c) => {
-                      const d = decisions[c.key] ?? { accept: false, type: c.suggestedType, name: c.name };
-                      return (
-                        <li key={c.key} className="py-2 border-b border-border/10">
-                          <div className="flex items-center gap-2 sm:gap-3">
-                            <input
-                              type="checkbox"
-                              checked={d.accept}
-                              onChange={(e) =>
-                                setDecisions((s) => ({ ...s, [c.key]: { ...d, accept: e.target.checked } }))
+            <section className="space-y-3">
+              <h3 className="font-serif text-lg text-foreground">{t("import_detectedTitle")}</h3>
+              {preview.candidates.length === 0 ? (
+                <p className={`${panelClass} px-4 py-5 text-center text-sm text-muted-foreground`}>
+                  {t("import_noCandidates")}
+                </p>
+              ) : (
+                <ul className="max-h-80 space-y-2 overflow-y-auto">
+                  {preview.candidates.map((c) => {
+                    const d = decisions[c.key] ?? { accept: false, type: c.suggestedType, name: c.name };
+                    return (
+                      <li key={c.key} className={`${panelClass} p-3`}>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={d.accept}
+                            onChange={(e) =>
+                              setDecisions((s) => ({ ...s, [c.key]: { ...d, accept: e.target.checked } }))
+                            }
+                            className="h-5 w-5 shrink-0 rounded-md accent-foreground"
+                            disabled={c.existing}
+                          />
+                          <input
+                            type="text"
+                            value={d.name}
+                            onChange={(e) =>
+                              setDecisions((s) => ({ ...s, [c.key]: { ...d, name: e.target.value } }))
+                            }
+                            onFocus={revealOnFocus}
+                            className="h-9 min-w-0 flex-1 rounded-lg bg-transparent px-2 text-base text-foreground transition-colors hover:bg-foreground/[0.04] focus:bg-foreground/[0.06] focus:outline-none focus:ring-2 focus:ring-ring"
+                          />
+                          <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                            {c.existing ? t("import_exists") : `${c.occurrences}×`}
+                          </span>
+                        </div>
+                        <div className="mt-2 flex items-center gap-2 pl-8">
+                          <select
+                            value={d.type}
+                            onChange={(e) =>
+                              setDecisions((s) => ({ ...s, [c.key]: { ...d, type: e.target.value as EntityType } }))
+                            }
+                            className="h-8 rounded-lg border border-border/15 bg-foreground/[0.03] px-2.5 text-xs text-foreground/90 focus:outline-none focus:ring-2 focus:ring-ring"
+                          >
+                            {TYPES.map((opt) => (
+                              <option key={opt} value={opt} className={optionClass}>
+                                {opt}
+                              </option>
+                            ))}
+                          </select>
+                          {c.confidence && (
+                            <span
+                              className={
+                                "cx-badge rounded-full " +
+                                (c.confidence === "HIGH"
+                                  ? "cx-badge-success"
+                                  : c.confidence === "MEDIUM"
+                                  ? "cx-badge-info"
+                                  : "cx-badge-neutral")
                               }
-                              className="w-4 h-4 accent-foreground shrink-0"
-                              disabled={c.existing}
-                            />
-                            <input
-                              type="text"
-                              value={d.name}
-                              onChange={(e) =>
-                                setDecisions((s) => ({ ...s, [c.key]: { ...d, name: e.target.value } }))
-                              }
-                              className="flex-1 min-w-0 bg-transparent border-b border-border/10 text-sm text-foreground focus:border-foreground/40 focus:outline-none px-0 py-1"
-                            />
-                            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground tabular-nums shrink-0">
-                              {c.existing ? t("import_exists") : `${c.occurrences}×`}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 mt-2 pl-6">
-                            <select
-                              value={d.type}
-                              onChange={(e) =>
-                                setDecisions((s) => ({ ...s, [c.key]: { ...d, type: e.target.value as EntityType } }))
-                              }
-                              className="bg-transparent border border-border/10 text-xs text-foreground/80 rounded-sm px-2 py-1 focus:outline-none focus:border-foreground/30"
                             >
-                              {TYPES.map((opt) => (
-                                <option key={opt} value={opt} className="bg-[hsl(var(--popup-background))] text-[hsl(var(--popup-foreground))]">
-                                  {opt}
-                                </option>
-                              ))}
-                            </select>
-                            {c.confidence && (
-                              <span
-                                className={
-                                  "cx-badge " +
-                                  (c.confidence === "HIGH"
-                                    ? "cx-badge-success"
-                                    : c.confidence === "MEDIUM"
-                                    ? "cx-badge-info"
-                                    : "cx-badge-neutral")
-                                }
-                              >
-                                {c.confidence}
-                              </span>
-                            )}
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </section>
-
-              {preview.errors.length > 0 && (
-                <div className="text-xs text-warning border border-warning/20 bg-warning/5 p-3 rounded-sm">
-                  {preview.errors.slice(0, 5).map((e) => (
-                    <div key={e}>{e}</div>
-                  ))}
-                </div>
+                              {c.confidence}
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
               )}
+            </section>
 
-              {busy && <Progress value={progress} className="h-[2px] bg-accent rounded-none" />}
+            {preview.errors.length > 0 && (
+              <div className="space-y-1 rounded-2xl border border-warning/20 bg-warning/5 p-4 text-sm text-warning">
+                {preview.errors.slice(0, 5).map((e) => (
+                  <div key={e}>{e}</div>
+                ))}
+              </div>
+            )}
 
-              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2 sticky bottom-0 bg-[hsl(var(--popup-background))] -mx-4 sm:mx-0 px-4 sm:px-0 pb-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={reset}
-                  disabled={busy}
-                  className="w-full sm:w-auto"
-                >
-                  {t("common_back")}
-                </Button>
-                <Button
-                  variant="white"
-                  size="sm"
-                  onClick={handleCommit}
-                  disabled={busy}
-                  className="w-full sm:w-auto"
-                >
-                  {busy && <ArrowPathIcon className="w-3.5 h-3.5 mr-2 animate-spin" />}
-                  {t(preview.files.length === 1 ? "import_commitBtn_one" : "import_commitBtn", { n: preview.files.length })}
-                </Button>
+            {busy && <Progress value={progress} className="h-1.5 rounded-full bg-secondary" />}
+
+            <div className="sticky bottom-0 -mx-5 flex flex-col-reverse gap-2 bg-background/90 px-5 pb-1 pt-3 backdrop-blur-md sm:-mx-6 sm:flex-row sm:justify-end sm:px-6">
+              <Button
+                variant="secondary"
+                onClick={reset}
+                disabled={busy}
+                className="h-12 w-full rounded-xl text-sm sm:w-auto sm:px-6"
+              >
+                {t("common_back")}
+              </Button>
+              <Button
+                onClick={handleCommit}
+                disabled={busy}
+                className="h-12 w-full rounded-xl text-sm sm:w-auto sm:px-6"
+              >
+                {busy && <ArrowPathIcon className="mr-2 h-4 w-4 animate-spin" />}
+                {t(preview.files.length === 1 ? "import_commitBtn_one" : "import_commitBtn", { n: preview.files.length })}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {step === "result" && result && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-4">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-success/15">
+                <CheckCircleIcon className="h-7 w-7 text-success" />
+              </span>
+              <div>
+                <p className="font-serif text-xl text-foreground">{t("import_completeTitle")}</p>
+                <p className="text-sm text-muted-foreground">{t("import_completeDesc")}</p>
               </div>
             </div>
-          )}
-
-          {step === "result" && result && (
-            <div className="space-y-6">
-              <div className="flex items-center gap-3">
-                <CheckCircleIcon className="w-8 h-8 text-success" />
-                <div>
-                  <p className="font-serif text-xl text-foreground">{t("import_completeTitle")}</p>
-                  <p className="text-xs text-muted-foreground">{t("import_completeDesc")}</p>
-                </div>
+            <dl className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
+              <Stat label={t("import_stat_notes")} value={result.notesCreated} />
+              <Stat label={t("import_stat_newEntities")} value={result.entitiesCreated} />
+              <Stat label={t("import_stat_reused")} value={result.entitiesReused} />
+              <Stat label={t("import_stat_links")} value={result.linksCreated} />
+            </dl>
+            {result.errors.length > 0 && (
+              <div className="max-h-32 space-y-1 overflow-y-auto rounded-2xl border border-warning/20 bg-warning/5 p-4 text-sm text-warning">
+                {result.errors.map((e) => (
+                  <div key={e}>{e}</div>
+                ))}
               </div>
-              <dl className="grid grid-cols-2 gap-3 border-t border-border/10 pt-5 text-xs sm:grid-cols-4 sm:gap-4">
-                <Stat label={t("import_stat_notes")} value={result.notesCreated} />
-                <Stat label={t("import_stat_newEntities")} value={result.entitiesCreated} />
-                <Stat label={t("import_stat_reused")} value={result.entitiesReused} />
-                <Stat label={t("import_stat_links")} value={result.linksCreated} />
-              </dl>
-              {result.errors.length > 0 && (
-                <div className="text-xs text-warning border border-warning/20 bg-warning/5 p-3 rounded-sm max-h-32 overflow-y-auto">
-                  {result.errors.map((e) => (
-                    <div key={e}>{e}</div>
-                  ))}
-                </div>
-              )}
-              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleRelink}
-                  disabled={busy}
-                  className="w-full sm:w-auto"
-                >
-                  {busy && <ArrowPathIcon className="w-3.5 h-3.5 mr-2 animate-spin" />}
-                  {t("import_relinkBtn")}
-                </Button>
-                <Button
-                  variant="white"
-                  size="sm"
-                  onClick={() => {
-                    reset();
-                    onOpenChange(false);
-                  }}
-                  className="w-full sm:w-auto"
-                >
-                  {t("import_doneBtn")}
-                </Button>
-              </div>
+            )}
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                variant="secondary"
+                onClick={handleRelink}
+                disabled={busy}
+                className="h-12 w-full rounded-xl text-sm sm:w-auto sm:px-6"
+              >
+                {busy && <ArrowPathIcon className="mr-2 h-4 w-4 animate-spin" />}
+                {t("import_relinkBtn")}
+              </Button>
+              <Button
+                onClick={() => {
+                  reset();
+                  onOpenChange(false);
+                }}
+                className="h-12 w-full rounded-xl text-sm sm:w-auto sm:px-6"
+              >
+                {t("import_doneBtn")}
+              </Button>
             </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+          </div>
+        )}
+      </div>
+    </SmoothDrawer>
   );
 }
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div>
-      <dt className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground">{label}</dt>
-      <dd className="mt-1 font-serif text-lg sm:text-xl text-foreground/90 tabular-nums">{value}</dd>
+    <div className="rounded-2xl bg-foreground/[0.04] px-4 py-3">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-1 font-serif text-2xl tabular-nums text-foreground">{value}</dd>
     </div>
   );
 }

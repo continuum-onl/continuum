@@ -377,7 +377,11 @@ export const authApi = {
 
   logout: () => api.post("/api/auth/logout", {}),
   me: () => api.get("/api/auth/me"),
-  updateMe: (data: Record<string, string>) => api.patch("/api/account/me", data),
+  updateMe: (data: {
+    username?: string;
+    theme?: "CLASSIC" | "CHARCOAL" | "LIGHT";
+    language?: "en" | "es" | "pt" | "fr";
+  }) => api.patch("/api/account/me", data),
   changePassword: (currentPassword: string, newPassword: string) =>
     api.post("/api/account/password/change", { currentPassword, newPassword }),
   forgotPassword: (email: string) =>

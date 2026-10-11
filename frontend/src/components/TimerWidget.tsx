@@ -8,12 +8,18 @@ import { useLanguage } from '@/contexts/LanguageContext';
 // ============================================================
 // SUBCOMPONENTE: FlipDigit (Alinhamento Robusto e Sem Falhas)
 // ============================================================
-function FlipDigit({ value }: { value: string }) {
+function FlipDigit({ value, animate = true }: { value: string; animate?: boolean }) {
   const [prevValue, setPrevValue] = useState(value);
   const [isFlipping, setIsFlipping] = useState(false);
 
   useEffect(() => {
     if (value !== prevValue) {
+      if (!animate) {
+        setPrevValue(value);
+        setIsFlipping(false);
+        return;
+      }
+
       setIsFlipping(true);
       const timeout = setTimeout(() => {
         setPrevValue(value);
@@ -21,7 +27,9 @@ function FlipDigit({ value }: { value: string }) {
       }, 500);
       return () => clearTimeout(timeout);
     }
-  }, [value, prevValue]);
+  }, [animate, value, prevValue]);
+
+  const displayedPreviousValue = animate ? prevValue : value;
 
   return (
     <div className="relative w-20 h-28 sm:w-28 sm:h-40 lg:w-32 lg:h-48 font-mono font-bold text-foreground select-none [perspective:1000px]">
@@ -38,35 +46,35 @@ function FlipDigit({ value }: { value: string }) {
       `}</style>
 
       {/* 1. TOPO BASE */}
-      <div className="absolute top-0 left-0 w-full h-1/2 overflow-hidden rounded-t-xl bg-gradient-to-b from-[#1a1a1c] to-[#111112] border-b border-black/50">
+      <div className="absolute top-0 left-0 w-full h-1/2 overflow-hidden rounded-t-xl bg-gradient-to-b from-card to-background border-b border-border/30">
         <div className="absolute top-0 left-0 w-full h-[200%] flex items-center justify-center text-6xl sm:text-8xl lg:text-9xl leading-none">
           {value}
         </div>
       </div>
 
       {/* 2. BASE DE BAIXO */}
-      <div className="absolute bottom-0 left-0 w-full h-1/2 overflow-hidden rounded-b-xl bg-gradient-to-b from-[#111112] to-[#09090a]">
+      <div className="absolute bottom-0 left-0 w-full h-1/2 overflow-hidden rounded-b-xl bg-gradient-to-b from-background to-card">
         <div className="absolute bottom-0 left-0 w-full h-[200%] flex items-center justify-center text-6xl sm:text-8xl lg:text-9xl leading-none">
-          {prevValue}
+          {displayedPreviousValue}
         </div>
       </div>
 
       {/* 3. CARTA QUE CAI DE CIMA */}
-      <div className={`absolute top-0 left-0 w-full h-1/2 overflow-hidden rounded-t-xl bg-gradient-to-b from-[#1a1a1c] to-[#111112] border-b border-black/50 [transform-origin:bottom] backface-hidden ${isFlipping ? 'anim-top' : ''}`}>
+      <div className={`absolute top-0 left-0 w-full h-1/2 overflow-hidden rounded-t-xl bg-gradient-to-b from-card to-background border-b border-border/30 [transform-origin:bottom] backface-hidden ${isFlipping && animate ? 'anim-top' : ''}`}>
         <div className="absolute top-0 left-0 w-full h-[200%] flex items-center justify-center text-6xl sm:text-8xl lg:text-9xl leading-none">
-          {prevValue}
+          {displayedPreviousValue}
         </div>
       </div>
 
       {/* 4. CARTA QUE APARECE EM BAIXO */}
-      <div className={`absolute bottom-0 left-0 w-full h-1/2 overflow-hidden rounded-b-xl bg-gradient-to-b from-[#111112] to-[#09090a] [transform-origin:top] backface-hidden [transform:rotateX(90deg)] ${isFlipping ? 'anim-bottom' : ''}`}>
+      <div className={`absolute bottom-0 left-0 w-full h-1/2 overflow-hidden rounded-b-xl bg-gradient-to-b from-background to-card [transform-origin:top] backface-hidden [transform:rotateX(90deg)] ${isFlipping && animate ? 'anim-bottom' : ''}`}>
         <div className="absolute bottom-0 left-0 w-full h-[200%] flex items-center justify-center text-6xl sm:text-8xl lg:text-9xl leading-none">
           {value}
         </div>
       </div>
 
       {/* FRISO CENTRAL */}
-      <div className="absolute top-[calc(50%-1px)] left-0 w-full h-[2px] bg-background/80 z-10 shadow-[0_1px_0px_rgba(255,255,255,0.08)]"></div>
+      <div className="absolute top-[calc(50%-1px)] left-0 w-full h-[2px] bg-border/40 z-10"></div>
     </div>
   );
 }
@@ -114,6 +122,7 @@ export function TimerWidget({
 
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showControls, setShowControls] = useState(false);
+  const [hasStoppedTimer, setHasStoppedTimer] = useState(false);
   const fullscreenContainerRef = useRef<HTMLDivElement | null>(null);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -126,7 +135,9 @@ export function TimerWidget({
 
   const currentElapsed = isRunning
     ? getElapsedSeconds(entityId)
-    : (activeTimer?.elapsedSeconds || 0);
+    : hasStoppedTimer
+      ? 0
+      : (activeTimer?.elapsedSeconds || 0);
 
   const timeString = formatSeconds(currentElapsed);
 
@@ -184,6 +195,7 @@ export function TimerWidget({
 
   const handleStart = async () => {
     try {
+      setHasStoppedTimer(false);
       primeEntityName(entityId, entityName);
       void ensureNotificationPermission();
       await startTimer(entityId);
@@ -194,6 +206,7 @@ export function TimerWidget({
   };
 
   const handleStop = async () => {
+    setHasStoppedTimer(true);
     try {
       const activeTimerData = activeTimers.get(entityId);
       if (activeTimerData) {
@@ -293,7 +306,7 @@ export function TimerWidget({
       )}
 
       {/* CONTROLS */}
-      <div className="mb-3 grid grid-cols-2 gap-2">
+      <div className={`mb-3 grid gap-2 ${isRunning ? "grid-cols-2" : "grid-cols-1"}`}>
         {!isRunning ? (
           <button
             onClick={handleStart}
@@ -318,23 +331,22 @@ export function TimerWidget({
             >
               {isStopping ? '…' : t("tm_stop")}
             </button>
+            <button
+              onClick={handleRestart}
+              disabled={timerLoading}
+              className="min-h-11 rounded-xl bg-secondary px-2 font-mono text-[10px] uppercase tracking-[0.14em] text-secondary-foreground/70 transition hover:bg-secondary/75 hover:text-secondary-foreground disabled:cursor-not-allowed disabled:opacity-30 sm:text-[11px] sm:tracking-[0.2em]"
+            >
+              {t("tm_restart")}
+            </button>
+            <button
+              onClick={() => setIsFullscreen(true)}
+              className="min-h-11 rounded-xl bg-secondary px-2 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-secondary-foreground/70 transition hover:bg-secondary/75 hover:text-secondary-foreground sm:text-[10px] sm:tracking-[0.2em]"
+            >
+              {t("tm_flip_clock")}
+            </button>
           </>
         )}
-        <button
-          onClick={handleRestart}
-          disabled={!isRunning || timerLoading}
-          className="min-h-11 rounded-xl bg-secondary px-2 font-mono text-[10px] uppercase tracking-[0.14em] text-secondary-foreground/70 transition hover:bg-secondary/75 hover:text-secondary-foreground disabled:cursor-not-allowed disabled:opacity-30 sm:text-[11px] sm:tracking-[0.2em]"
-        >
-          {t("tm_restart")}
-        </button>
       </div>
-
-      <button
-        onClick={() => setIsFullscreen(true)}
-        className="min-h-11 w-full rounded-xl bg-secondary px-2 py-2 font-mono text-[9px] uppercase tracking-[0.14em] text-secondary-foreground/70 transition hover:bg-secondary/75 hover:text-secondary-foreground sm:text-[10px] sm:tracking-[0.2em]"
-      >
-        {t("tm_flip_clock")}
-      </button>
 
       {/* TODAY SECTION — Activity stat grid */}
       <div className="mt-5 grid grid-cols-1 divide-y divide-border/10 border-y border-border/10 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
@@ -352,52 +364,53 @@ export function TimerWidget({
           onMouseMove={revealControls}
           onMouseLeave={() => setShowControls(false)}
           onTouchStart={revealControls}
-          className="fixed inset-0 w-screen h-[100dvh] z-50 flex flex-col justify-center items-center bg-black select-none group"
+          className="fixed inset-0 w-screen h-[100dvh] z-50 flex flex-col justify-center items-center bg-background text-foreground select-none"
         >
           <button
             onClick={() => setIsFullscreen(false)}
-            className="absolute top-6 right-6 text-slate-600 hover:text-foreground text-2xl font-light w-12 h-12 flex items-center justify-center rounded-full border border-slate-800 hover:border-slate-600 transition bg-black hover:bg-slate-900 z-10"
+            className="absolute top-6 right-6 text-muted-foreground hover:text-foreground text-2xl font-light w-12 h-12 flex items-center justify-center rounded-full border border-border/30 hover:border-border/60 transition bg-card hover:bg-accent z-10"
           >
             ✕
           </button>
 
           {/* Entity name in fullscreen */}
-          <div className="absolute top-8 left-1/2 -translate-x-1/2 text-[11px] sm:text-xs font-mono tracking-[0.3em] text-zinc-600 uppercase">
-            {entityName}{isPaused && <span className="ml-3 text-zinc-400">· {t("tm_paused_suffix")}</span>}
+          <div className="absolute top-8 left-1/2 -translate-x-1/2 text-[11px] sm:text-xs font-mono tracking-[0.3em] text-muted-foreground uppercase">
+            {entityName}{isPaused && <span className="ml-3 text-foreground">· {t("tm_paused_suffix")}</span>}
           </div>
 
           <div className={`flex items-center gap-1.5 sm:gap-3 md:gap-4 transition-opacity ${isPaused ? 'opacity-60' : 'opacity-100'}`}>
-            <FlipDigit value={hrs[0]} />
-            <FlipDigit value={hrs[1]} />
+            <FlipDigit value={hrs[0]} animate={isRunning && !isPaused} />
+            <FlipDigit value={hrs[1]} animate={isRunning && !isPaused} />
 
             <div className={`flex flex-col gap-2 sm:gap-4 px-1 opacity-40 ${isPaused ? '' : 'animate-pulse'}`}>
               <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-foreground rounded-full"></span>
               <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-foreground rounded-full"></span>
             </div>
 
-            <FlipDigit value={mins[0]} />
-            <FlipDigit value={mins[1]} />
+            <FlipDigit value={mins[0]} animate={isRunning && !isPaused} />
+            <FlipDigit value={mins[1]} animate={isRunning && !isPaused} />
 
             <div className={`flex flex-col gap-2 sm:gap-4 px-1 opacity-40 ${isPaused ? '' : 'animate-pulse'}`}>
               <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-foreground rounded-full"></span>
               <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-foreground rounded-full"></span>
             </div>
 
-            <FlipDigit value={secs[0]} />
-            <FlipDigit value={secs[1]} />
+            <FlipDigit value={secs[0]} animate={isRunning && !isPaused} />
+            <FlipDigit value={secs[1]} animate={isRunning && !isPaused} />
           </div>
 
           {/* Hover / tap-revealed controls */}
           <div
+            aria-hidden={!showControls && !isPaused}
             className={`absolute bottom-20 sm:bottom-24 flex items-center gap-3 sm:gap-4 transition-all duration-300 ${
               showControls || isPaused ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3 pointer-events-none'
-            } group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto`}
+            }`}
           >
             <button
               onClick={handlePauseToggle}
               disabled={!isRunning}
               title={isPaused ? t("tm_resume") : t("tm_pause")}
-              className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center rounded-full border border-zinc-800 bg-zinc-950/80 backdrop-blur text-zinc-200 hover:bg-zinc-900 hover:border-zinc-600 transition disabled:opacity-30"
+              className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center rounded-full border border-border/40 bg-card/90 backdrop-blur text-foreground shadow-md hover:bg-accent hover:border-border/70 transition disabled:opacity-30"
             >
               {isPaused ? (
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
@@ -409,7 +422,7 @@ export function TimerWidget({
               onClick={handleRestart}
               disabled={!isRunning}
               title={t("tm_restart")}
-              className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center rounded-full border border-zinc-800 bg-zinc-950/80 backdrop-blur text-zinc-300 hover:bg-zinc-900 hover:border-zinc-600 transition disabled:opacity-30"
+              className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center rounded-full border border-border/40 bg-card/90 backdrop-blur text-foreground shadow-md hover:bg-accent hover:border-border/70 transition disabled:opacity-30"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
             </button>
@@ -417,15 +430,15 @@ export function TimerWidget({
               onClick={handleStop}
               disabled={!isRunning || isStopping}
               title={t("tm_stop")}
-              className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center rounded-full border border-zinc-800 bg-zinc-950/80 backdrop-blur text-zinc-200 hover:bg-zinc-900 hover:border-red-900/60 hover:text-red-200 transition disabled:opacity-30"
+              className="w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center rounded-full border border-border/40 bg-card/90 backdrop-blur text-foreground shadow-md hover:bg-destructive hover:text-destructive-foreground hover:border-destructive transition disabled:opacity-30"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>
             </button>
           </div>
 
-          <div className="absolute bottom-6 sm:bottom-10 text-[10px] font-mono tracking-widest text-zinc-700 uppercase">
+          <div className="absolute bottom-6 sm:bottom-10 text-[10px] font-mono tracking-widest text-muted-foreground uppercase">
             <span className="hidden sm:inline">
-              {t("tm_esc_to_exit", { key: "" }).split("{key}")[0]}<span className="text-zinc-500 bg-zinc-950 px-2 py-1 rounded border border-zinc-900">ESC</span>{t("tm_esc_to_exit", { key: "" }).split("{key}")[1]}
+              {t("tm_esc_to_exit", { key: "" }).split("{key}")[0]}<span className="text-foreground bg-card px-2 py-1 rounded border border-border/40">ESC</span>{t("tm_esc_to_exit", { key: "" }).split("{key}")[1]}
             </span>
             <span className="sm:hidden">{t("tm_tap_to_reveal")}</span>
           </div>

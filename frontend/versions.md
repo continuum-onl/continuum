@@ -4,6 +4,19 @@ Every notable change to Continuum, from the first release to the latest version.
 
 ---
 
+v1.3.2 — Oct 11, 2026
+
+- UI: Introduced charcoal and light themes.
+- UI: Polished drawer component
+- 3D Graph: Add a 3D graph in brain shape (BETA).
+- Backend: Added email infrastructure.
+- Email: Added an alert-sending service.
+- Time Tracking: Preserved scroll-wheel duration controls on mobile and added numeric inputs for setting goals and adding manual entries on desktop.
+- Notes: Fixed bilink navigation to open the correct note and save pending edits before leaving.
+- Import: Improved entity detection to include only entities mentioned at least twice.
+
+---
+
 v1.3.1 — Oct 08, 2026
 
 - Performance: Reduced startup delays when opening the app.

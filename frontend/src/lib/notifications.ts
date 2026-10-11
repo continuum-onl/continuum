@@ -3,7 +3,7 @@ import { isUnlimited, type CurrentPlanLimits } from "@/lib/plan";
 import type { UserUsage } from "@/types";
 
 export type NotificationKind = "success" | "error" | "info" | "warning";
-export type NotificationCategory = "limit" | "account-deletion";
+export type NotificationCategory = "limit" | "account-deletion" | "entity-relink";
 export type UsageMetric = "notes" | "entities" | "vault";
 export const NOTIFICATION_DURATION = 5000;
 
@@ -31,7 +31,7 @@ export function notificationContent(kind: NotificationKind, title?: ReactNode, d
 }
 
 export function shouldDisplayNotification(kind: NotificationKind, category?: NotificationCategory) {
-  return kind === "error" || category === "limit" || category === "account-deletion";
+  return kind === "error" || category === "limit" || category === "account-deletion" || category === "entity-relink";
 }
 
 export function usageWarningContent(metric: UsageMetric, percent: number) {

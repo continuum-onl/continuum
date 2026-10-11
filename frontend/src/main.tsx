@@ -2,18 +2,21 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { registerContinuumSW } from "./lib/pwa-register";
+import { applyAppTheme, readCachedAppTheme, shouldApplyAppTheme } from "./lib/app-theme";
 
 // Apply persisted theme synchronously to avoid flash.
 if (typeof document !== "undefined") {
   try {
-    const stored = window.localStorage.getItem("continuum.theme");
-    const theme = stored === "light" ? "light" : "dark";
-    document.documentElement.classList.remove("light", "dark");
-    document.documentElement.classList.add(theme);
-    document.documentElement.style.colorScheme = theme;
+    const hasCachedSession = Boolean(
+      (sessionStorage.getItem("access_token") ?? localStorage.getItem("access_token")) &&
+      localStorage.getItem("auth_user"),
+    );
+    applyAppTheme(
+      readCachedAppTheme(),
+      shouldApplyAppTheme(window.location.pathname, hasCachedSession),
+    );
   } catch {
-    document.documentElement.classList.add("dark");
-    document.documentElement.style.colorScheme = "dark";
+    applyAppTheme("CLASSIC", false);
   }
 }
 

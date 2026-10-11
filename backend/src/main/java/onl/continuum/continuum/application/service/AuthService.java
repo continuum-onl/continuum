@@ -247,6 +247,16 @@ public class AuthService {
         users.save(user);
     }
 
+    @Transactional
+    public void updatePreferences(String userId, String theme, String language) {
+        User user = users.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
+        user.setTheme(user.getTheme());
+        if (theme != null) user.setTheme(theme);
+        if (language != null) user.setLanguage(language);
+        user.setUpdatedAt(Instant.now());
+        users.save(user);
+    }
+
     public UserContextResponse getContext(String userId) {
         User user = users.findById(userId).orElseThrow(() -> new NotFoundException("User not found"));
         List<Subscription> subs = subscriptions.findAllByUserId(userId);
