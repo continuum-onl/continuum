@@ -42,7 +42,7 @@ vi.mock("@/lib/api", () => ({
   dashboardApi: { summary: api.dashboard },
 }));
 
-import { prefetchPrimaryLists, PREFETCH_CONCURRENCY } from "@/lib/prefetch";
+import { getPrefetchProgress, prefetchPrimaryLists, PREFETCH_CONCURRENCY } from "@/lib/prefetch";
 
 function response<T>(data: T) {
   return Promise.resolve({ data });
@@ -93,7 +93,16 @@ describe("background primary-data prefetch", () => {
       active -= 1;
       return { data };
     };
-    api.noteGet.mockImplementation((id: string) => delayedResponse({ id, content: { type: "doc" } }));
+    let releaseFirstNote!: () => void;
+    let signalFirstNote!: () => void;
+    const firstNoteStarted = new Promise<void>((resolve) => { signalFirstNote = resolve; });
+    api.noteGet.mockImplementation(async (id: string) => {
+      if (id === "n1") {
+        signalFirstNote();
+        await new Promise<void>((resolve) => { releaseFirstNote = resolve; });
+      }
+      return delayedResponse({ id, content: { type: "doc" } });
+    });
     api.noteBacklinks.mockImplementation((id: string) => delayedResponse({ id, linkedMentions: [], unlinkedMentions: [] }));
     api.entityGet.mockImplementation((id: string) => delayedResponse({ id, type: id === "e2" ? "ACTIVITY" : "TOPIC" }));
     api.entityNotes.mockImplementation((id: string) => delayedResponse([{ id: `n-${id}` }]));
@@ -102,8 +111,16 @@ describe("background primary-data prefetch", () => {
     api.entityHeatmap.mockImplementation((id: string) => delayedResponse({ [id]: 1 }));
     api.timeTotal.mockImplementation((id: string) => delayedResponse({ id, totalSeconds: 10 }));
 
-    await prefetchPrimaryLists();
+    const prefetch = prefetchPrimaryLists();
+    expect(getPrefetchProgress()).toMatchObject({ active: true, completed: 0, total: null });
+    await firstNoteStarted;
+    expect(getPrefetchProgress()).toMatchObject({ active: true, total: 21 });
+    expect(getPrefetchProgress().completed).toBeGreaterThanOrEqual(2);
+    expect(getPrefetchProgress().completed).toBeLessThan(21);
+    releaseFirstNote();
+    await prefetch;
 
+    expect(getPrefetchProgress()).toMatchObject({ active: false, completed: 0, total: null });
     expect(queryClient.getQueryData(qk.note("n1"))).toMatchObject({ id: "n1", content: { type: "doc" } });
     expect(queryClient.getQueryData(["notes", "backlinks", "n2"])).toMatchObject({ id: "n2" });
     expect(queryClient.getQueryData(qk.entity("e1"))).toMatchObject({ id: "e1" });

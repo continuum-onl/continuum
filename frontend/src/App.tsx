@@ -133,12 +133,13 @@ function NativeGoogleAuthRedirect() {
         return;
       }
 
-      if (
-        callbackUrl.origin !== "https://continuum.onl" ||
-        callbackUrl.pathname !== "/google-callback"
-      ) {
-        return;
-      }
+      const isAppLink =
+        callbackUrl.origin === "https://continuum.onl" && callbackUrl.pathname === "/google-callback";
+      // Custom scheme: continuum://google-callback?code=...&state=...
+      const isSchemeLink =
+        callbackUrl.protocol === "continuum:" &&
+        (callbackUrl.host === "google-callback" || callbackUrl.pathname.replace(/^\/+/, "") === "google-callback");
+      if (!isAppLink && !isSchemeLink) return;
 
       navigate(`/google-callback${callbackUrl.search}`);
       await Browser.close();

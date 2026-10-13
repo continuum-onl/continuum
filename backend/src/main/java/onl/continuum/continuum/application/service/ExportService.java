@@ -9,6 +9,7 @@ import onl.continuum.continuum.domain.user.User;
 import onl.continuum.continuum.domain.user.UserRepository;
 import onl.continuum.continuum.infra.persistence.EntityRepository;
 import onl.continuum.continuum.infra.persistence.NoteRepository;
+import onl.continuum.continuum.infra.persistence.NoteTypeRepository;
 import onl.continuum.continuum.infra.vault.VaultStorageService;
 
 import java.io.ByteArrayOutputStream;
@@ -27,14 +28,17 @@ public class ExportService {
     private final ObjectMapper objectMapper;
     private final UserRepository userRepo;
     private final VaultStorageService vaultStorageService;
+    private final NoteTypeRepository noteTypeRepository;
 
     public ExportService(NoteRepository noteRepo, EntityRepository entityRepo, ObjectMapper objectMapper,
-                         UserRepository userRepo, VaultStorageService vaultStorageService) {
+                         UserRepository userRepo, VaultStorageService vaultStorageService,
+                         NoteTypeRepository noteTypeRepository) {
         this.noteRepo = noteRepo;
         this.entityRepo = entityRepo;
         this.objectMapper = objectMapper;
         this.userRepo = userRepo;
         this.vaultStorageService = vaultStorageService;
+        this.noteTypeRepository = noteTypeRepository;
     }
 
     public ExportDataDTO exportUserData(String userId) {
@@ -43,7 +47,10 @@ public class ExportService {
         List<Entity> entities = entityRepo.findByUserId(userId);
 
         // Criar o DTO de exportação
-        return ExportDataDTO.from(userId, notes, entities);
+        List<String> noteTypes = noteTypeRepository.findByUserIdOrderByNameAsc(userId).stream()
+                .map(type -> type.name())
+                .toList();
+        return ExportDataDTO.from(userId, notes, entities, noteTypes);
     }
 
     public String exportUserDataAsJson(String userId) throws Exception {

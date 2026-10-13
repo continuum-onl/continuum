@@ -1,8 +1,10 @@
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export type ListSortMode = "recent" | "oldest" | "az" | "za";
 
 interface ListSortMenuProps {
+  className?: string;
   value: ListSortMode;
   onValueChange: (value: ListSortMode) => void;
   labels: {
@@ -13,7 +15,7 @@ interface ListSortMenuProps {
   };
 }
 
-export function ListSortMenu({ value, onValueChange, labels }: ListSortMenuProps) {
+export function ListSortMenu({ value, onValueChange, labels, className }: ListSortMenuProps) {
   const modes: ListSortMode[] = ["recent", "oldest", "az", "za"];
   const currentIndex = modes.indexOf(value);
 
@@ -22,7 +24,7 @@ export function ListSortMenu({ value, onValueChange, labels }: ListSortMenuProps
       type="button"
       variant="ghost"
       size="icon"
-      className="h-12 w-12 shrink-0 rounded-2xl bg-accent lg:h-8 lg:w-8 lg:rounded-md"
+      className={cn("h-12 w-12 shrink-0 rounded-2xl bg-accent lg:h-8 lg:w-8 lg:rounded-md", className)}
       onClick={() => onValueChange(modes[(currentIndex + 1) % modes.length])}
       aria-label={labels[value]}
       title={labels[value]}

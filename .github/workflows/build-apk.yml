@@ -562,6 +562,10 @@ jobs:
             sed -i '/MainActivity/,/<\/activity>/s#</activity>#        <intent-filter android:autoVerify="true">\n            <action android:name="android.intent.action.VIEW" />\n            <category android:name="android.intent.category.DEFAULT" />\n            <category android:name="android.intent.category.BROWSABLE" />\n            <data\n                android:scheme="https"\n                android:host="continuum.onl"\n                android:pathPrefix="/google-callback" />\n        </intent-filter>\n    </activity>#' "$MANIFEST"
           fi
           grep -n -A 8 'android:autoVerify="true"' "$MANIFEST"
+          if ! grep -q 'android:scheme="continuum"' "$MANIFEST"; then
+            sed -i '/MainActivity/,/<\/activity>/s#</activity>#        <intent-filter>\n            <action android:name="android.intent.action.VIEW" />\n            <category android:name="android.intent.category.DEFAULT" />\n            <category android:name="android.intent.category.BROWSABLE" />\n            <data android:scheme="continuum" android:host="google-callback" />\n        </intent-filter>\n    </activity>#' "$MANIFEST"
+          fi
+          grep -n -B 3 -A 2 'android:scheme="continuum"' "$MANIFEST"
 
       - name: Fix Kotlin stdlib duplicate classes
         working-directory: ${{ env.ANDROID_DIR }}

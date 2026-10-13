@@ -120,7 +120,7 @@ You can inspect the source code, report issues, suggest improvements and contrib
 
 **Source code:**
 
-https://github.com/continuumnodes/continuum
+https://github.com/continuum-onl/continuum
 
 **Versions / changelog:**
 
@@ -270,7 +270,7 @@ The frontend contains the user interface and client-side application logic.
 
 Clone the repository:
 
-    git clone https://github.com/continuumnodes/continuum.git
+    git clone https://github.com/continuum-onl/continuum.git
     cd continuum
 
 Then follow the setup instructions inside the `backend` and `frontend` directories.
@@ -343,7 +343,7 @@ See the repository's license file for the current licensing terms.
 
 **Website:** https://continuum.onl
 
-**GitHub:** https://github.com/continuumnodes/continuum
+**GitHub:** https://github.com/continuum-onl/continuum
 
 **Privacy:** https://continuum.onl/privacy
 

@@ -104,7 +104,7 @@ public class UserService {
         java.time.Instant purgeAt = now.plus(java.time.Duration.ofDays(DELETION_GRACE_DAYS));
         if (emailService != null) {
             userRepository.findById(userId).ifPresent(u ->
-                emailService.sendDeletionScheduled(u.getEmail(), u.getUsername(), purgeAt));
+                emailService.sendDeletionScheduled(u.getEmail(), u.getUsername(), purgeAt, u.getLanguage()));
         }
         return purgeAt;
     }
@@ -157,12 +157,12 @@ public class UserService {
         Query byUser = Query.query(Criteria.where("userId").is(userId));
         for (String c : java.util.List.of("notes", "entities", "entity_links", "note_links", "refresh_tokens",
                 "subscriptions", "time_entries", "timer_sessions", "token_blacklist", "tracking_events",
-                "user_score_snapshots", "trash_items", "folders", "stripe_event_logs")) {
+                "user_score_snapshots", "trash_items", "folders", "note_types", "stripe_event_logs")) {
             mongoTemplate.remove(byUser, c);
         }
         userRepository.deleteById(userId);
         if (emailService != null) {
-            emailService.sendAccountDeleted(user.getEmail(), user.getUsername());
+            emailService.sendAccountDeleted(user.getEmail(), user.getUsername(), user.getLanguage());
         }
     }
 

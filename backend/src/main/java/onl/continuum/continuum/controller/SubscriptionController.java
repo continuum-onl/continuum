@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.*;
 import onl.continuum.continuum.application.exception.BadRequestException;
 import onl.continuum.continuum.application.service.SubscriptionService;
 import onl.continuum.continuum.controller.dto.subscription.CheckoutResponse;
+import onl.continuum.continuum.controller.dto.subscription.CheckoutConfigResponse;
 import onl.continuum.continuum.controller.dto.subscription.SubscriptionDTO;
 import onl.continuum.continuum.infra.security.CustomUserDetails;
 
@@ -45,6 +46,22 @@ public class SubscriptionController {
             throw new BadRequestException("priceId or planId is required");
         return ResponseEntity.ok(
                 subscriptionService.createCheckout(user.getUserId(), user.getEmail(), priceOrPlan));
+    }
+
+    @PostMapping("/checkout/embedded")
+    public ResponseEntity<CheckoutResponse> embeddedCheckout(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @RequestBody Map<String, String> body) {
+        String priceOrPlan = body.getOrDefault("priceId", body.get("planId"));
+        if (priceOrPlan == null || priceOrPlan.isBlank())
+            throw new BadRequestException("priceId or planId is required");
+        return ResponseEntity.ok(
+                subscriptionService.createEmbeddedCheckout(user.getUserId(), user.getEmail(), priceOrPlan));
+    }
+
+    @GetMapping("/checkout/config")
+    public ResponseEntity<CheckoutConfigResponse> checkoutConfig() {
+        return ResponseEntity.ok(new CheckoutConfigResponse(subscriptionService.getCheckoutPublishableKey()));
     }
 
     @PostMapping("/cancel")

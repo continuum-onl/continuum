@@ -71,6 +71,8 @@ const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
   withCredentials: true,
+  // A stuck request must never freeze the UI forever.
+  timeout: 30000,
 });
 
 type JsonRecord = Record<string, unknown>;
@@ -128,6 +130,10 @@ api.interceptors.request.use((config) => {
     url === "/api/auth/register" ||
     url === "/api/auth/refresh" ||
     url === "/api/auth/google/callback";
+  // Uploads can legitimately take longer than the default timeout.
+  if (typeof FormData !== "undefined" && config.data instanceof FormData) {
+    config.timeout = 0;
+  }
   if (!skipAuth) {
     const token = getAccessToken();
     if (token) {
@@ -317,18 +323,19 @@ api.interceptors.response.use(
       original._retry = true;
 
       try {
-        // Inicia refresh (múltiplas requisições compartilham a mesma promise)
-        const newAccessToken = await refreshTokenManager.refresh();
+        // If another request already refreshed the session after this one was
+        // sent, just retry with the current token instead of refreshing again
+        // (a second refresh with a rotated token would log the user out).
+        const sentAuth = String(original.headers?.Authorization ?? "");
+        const currentToken = getAccessToken();
+        const newAccessToken =
+          currentToken && sentAuth !== `Bearer ${currentToken}`
+            ? currentToken
+            : await refreshTokenManager.refresh();
 
         if (!newAccessToken) {
           console.error("[API] Refresh falhou, rejeitando requisição");
           return Promise.reject(error);
-        }
-
-        // Se estava na fila, aguarda seu turno
-        if (refreshTokenManager["failedQueue"].length > 0) {
-          console.log("[API] Requisição aguardando na fila de refresh");
-          await refreshTokenManager.waitForToken();
         }
 
         // Atualiza header com novo token
@@ -368,7 +375,8 @@ export const authApi = {
     api.post("/api/auth/login", { email, password }),
   register: (username: string, email: string, password: string) =>
     api.post("/api/auth/register", { username, email, password }),
-  googleStart: () => api.get("/api/auth/google/url"),
+  googleStart: (platform?: "native") =>
+    api.get("/api/auth/google/url", { params: platform ? { platform } : undefined }),
   
   // O backend ignora este redirectUri e usa o que ele mesmo enviou ao Google
   // (assinado dentro do state). Mandamos só para satisfazer a validação @NotBlank.
@@ -430,6 +438,20 @@ export const notesApi = {
   getBacklinkCount: (id: string) => api.get(`/api/notes/${id}/backlink-count`),
   getTypes: () => api.get("/api/notes/types"),
 };
+
+export const noteTypesApi = {
+  list: () => api.get<string[]>("/api/note-types"),
+  create: (name: string) => api.post<{ name: string }>("/api/note-types", { name }),
+  delete: (name: string) => api.delete("/api/note-types", { params: { name } }),
+};
+
+export async function getAllNoteTypes() {
+  const [assigned, saved] = await Promise.all([notesApi.getTypes(), noteTypesApi.list()]);
+  return [...new Set([
+    ...(Array.isArray(assigned.data) ? assigned.data : []),
+    ...(Array.isArray(saved.data) ? saved.data : []),
+  ])].sort((a, b) => a.localeCompare(b));
+}
 
 export const foldersApi = {
   list: () => api.get("/api/folders"),
@@ -548,6 +570,9 @@ export const subscriptionApi = {
   // Accepts either a Stripe price id (price_xxx) or a plan code ("VISION").
   checkout: (priceOrPlan: string) =>
     api.post("/api/subscriptions/checkout", { priceId: priceOrPlan, planId: priceOrPlan }),
+  checkoutEmbedded: (priceOrPlan: string) =>
+    api.post("/api/subscriptions/checkout/embedded", { priceId: priceOrPlan, planId: priceOrPlan }, { timeout: 20000 }),
+  checkoutConfig: () => api.get<{ publishableKey: string }>("/api/subscriptions/checkout/config", { timeout: 15000 }),
   cancel: (immediately = false) =>
     api.post("/api/subscriptions/cancel", { immediately }),
   changePlan: (priceOrPlan: string) =>

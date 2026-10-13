@@ -204,7 +204,7 @@ export const SideInspector = memo(function SideInspector({ isOpen, entity, onClo
           exit={mobileBottomSheet && window.innerWidth < 1024 ? { opacity: 0, y: 40 } : { opacity: 0, x: 320 }}
           transition={{ duration: 0.25 }}
           style={inspectorMobileStyle}
-          className={drawerMode ? "flex w-full flex-col" : mobileBottomSheet
+          className={drawerMode ? "flex h-full min-h-0 w-full flex-col" : mobileBottomSheet
             ? "relative z-40 flex h-[var(--mobile-inspector-height)] max-h-[70dvh] w-full flex-none flex-col overflow-hidden rounded-t-3xl border-t border-border/10 bg-background/95 shadow-2xl backdrop-blur-xl lg:fixed lg:bottom-0 lg:right-0 lg:top-0 lg:h-auto lg:max-h-none lg:w-[22rem] lg:rounded-none lg:rounded-l-2xl lg:border-l lg:border-t-0"
             : "fixed right-0 top-0 bottom-0 z-40 w-[22rem] border-l border-border/10 bg-background/95 backdrop-blur-xl shadow-2xl"}
         >
@@ -297,7 +297,7 @@ export const SideInspector = memo(function SideInspector({ isOpen, entity, onClo
           {mobileBottomSheet && !mobileExpanded && (
             <div className="min-h-0 flex-1 overflow-hidden px-4 pb-3 lg:hidden" aria-hidden="true" />
           )}
-          <ScrollArea className={mobileBottomSheet
+          <ScrollArea className={drawerMode ? "min-h-0 flex-1" : mobileBottomSheet
             ? mobileExpanded ? "min-h-0 flex-1 overscroll-contain lg:h-full" : "hidden lg:block lg:h-full"
             : "h-full"}
           >
@@ -557,7 +557,7 @@ export const SideInspector = memo(function SideInspector({ isOpen, entity, onClo
 
   if (drawerMode) {
     return (
-      <SmoothDrawer open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }} hideHeader title={entity?.title ?? ""}>
+      <SmoothDrawer key={entity?.id} expandable open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }} hideHeader title={entity?.title ?? ""}>
         {panel}
       </SmoothDrawer>
     );

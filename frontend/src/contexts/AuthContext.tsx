@@ -187,8 +187,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const loginWithGoogle = async () => {
-    const { data } = await authApi.googleStart();
-    if (Capacitor.isNativePlatform()) {
+    const isNative = Capacitor.isNativePlatform();
+    const { data } = await authApi.googleStart(isNative ? "native" : undefined);
+    if (isNative) {
       await Browser.open({ url: data.authorizationUrl });
     } else {
       window.location.href = data.authorizationUrl;

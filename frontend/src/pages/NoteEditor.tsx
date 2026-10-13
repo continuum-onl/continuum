@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useIsRestoring } from "@tanstack/react-query";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
-import { entitiesApi, notesApi } from "@/lib/api";
+import { entitiesApi, getAllNoteTypes, notesApi } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -281,7 +281,7 @@ export default function NoteEditor() {
 
       Promise.allSettled([
         queryClient.fetchQuery({ queryKey: qk.entities(), queryFn: () => entitiesApi.list().then((response) => response.data), staleTime: STALE.list }),
-        queryClient.fetchQuery({ queryKey: qk.noteTypes(), queryFn: () => notesApi.getTypes().then((response) => response.data), staleTime: STALE.list }),
+        queryClient.fetchQuery({ queryKey: qk.noteTypes(), queryFn: getAllNoteTypes, staleTime: STALE.list }),
       ])
         .then(([entitiesResult, typesResult]) => {
           if (cancelled) return;
@@ -330,7 +330,7 @@ export default function NoteEditor() {
       Promise.allSettled([
         swr(qk.note(id), () => notesApi.get(id).then((response) => response.data as NoteData), STALE.detail),
         swr(qk.entities(), () => entitiesApi.list().then((response) => response.data), STALE.list),
-        swr(qk.noteTypes(), () => notesApi.getTypes().then((response) => response.data), STALE.list),
+        swr(qk.noteTypes(), getAllNoteTypes, STALE.list),
       ])
         .then(([noteResult, entitiesResult, typesResult]) => {
           if (noteResult.status !== "fulfilled") throw noteResult.reason;

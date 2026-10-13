@@ -324,7 +324,7 @@ export default function Vault() {
 
   return (
     <AppLayout>
-      <div className="mx-auto max-w-4xl px-6 py-10 lg:px-12 lg:py-16">
+      <div className="mx-auto max-w-6xl px-6 py-5 lg:px-12 lg:py-10">
         <main className="min-w-0 flex-1">
           
           {/* Cabeçalho (desktop) — no mobile o título vem do AppLayout */}

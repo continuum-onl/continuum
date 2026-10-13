@@ -1,4 +1,15 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Capacitor } from "@capacitor/core";
+
+function isNativeState(state: string) {
+  try {
+    const part = state.split(".")[1];
+    const json = JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/")));
+    return json?.platform === "native";
+  } catch {
+    return false;
+  }
+}
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { authApi } from "@/lib/api";
@@ -13,6 +24,7 @@ export default function GoogleCallback() {
   const { setTokens, refreshUser } = useAuth();
   const { toast } = useToast();
   const hasCalled = useRef(false);
+  const [appLink, setAppLink] = useState<string | null>(null);
 
   useEffect(() => {
     const authTokens = extractAuthTokensFromLocation();
@@ -34,6 +46,17 @@ export default function GoogleCallback() {
       refreshUser()
         .then(() => navigate("/"))
         .catch(() => navigate("/"));
+      return;
+    }
+
+    // Flow started in the Android app: hand the code back to the app instead of
+    // signing in on the browser that Google redirected to.
+    if (code && state && !Capacitor.isNativePlatform() && isNativeState(state)) {
+      if (hasCalled.current) return;
+      hasCalled.current = true;
+      const deepLink = `continuum://google-callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`;
+      setAppLink(deepLink);
+      window.location.href = deepLink;
       return;
     }
 
@@ -87,6 +110,11 @@ export default function GoogleCallback() {
       <div className="text-center space-y-4">
         <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
         <p className="text-sm text-muted-foreground">{t("au_finishing_google_signin")}</p>
+        {appLink && (
+          <a href={appLink} className="inline-block text-sm text-foreground underline">
+            Continuum
+          </a>
+        )}
       </div>
     </div>
   );

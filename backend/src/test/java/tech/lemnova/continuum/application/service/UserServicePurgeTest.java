@@ -65,6 +65,7 @@ class UserServicePurgeTest {
 
         order.verify(vaultStorage).deleteVault("vault-id");
         order.verify(mongoTemplate).remove(any(Query.class), eq("notes"));
+        order.verify(mongoTemplate).remove(any(Query.class), eq("note_types"));
         order.verify(mongoTemplate).remove(any(Query.class), eq("stripe_event_logs"));
         order.verify(userRepository).deleteById("user-id");
     }
@@ -97,6 +98,7 @@ class UserServicePurgeTest {
 
         order.verify(vaultStorage).deleteVault("vault-id");
         order.verify(mongoTemplate).remove(any(Query.class), eq("notes"));
+        order.verify(mongoTemplate).remove(any(Query.class), eq("note_types"));
         order.verify(userRepository).deleteById("user-id");
     }
 

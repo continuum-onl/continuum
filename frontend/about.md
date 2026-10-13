@@ -47,7 +47,7 @@ Continuum is open source because we believe software that stores personal knowle
 
 You can inspect the source code, report issues, suggest improvements, and contribute to the project.
 
-[View the source code on GitHub](https://github.com/continuumnodes/continuum)
+[View the source code on GitHub](https://github.com/continuum-onl/continuum)
 
 ## Technology
 

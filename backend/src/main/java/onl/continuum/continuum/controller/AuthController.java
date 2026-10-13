@@ -49,8 +49,9 @@ public class AuthController {
 
     @GetMapping("/google/url")
     @Operation(summary = "Start Google OAuth2 login")
-    public ResponseEntity<GoogleAuthUrlResponse> startGoogleOAuth() {
-        OAuthStateService.OAuthState state = oauthStateService.createState();
+    public ResponseEntity<GoogleAuthUrlResponse> startGoogleOAuth(
+            @org.springframework.web.bind.annotation.RequestParam(value = "platform", required = false) String platform) {
+        OAuthStateService.OAuthState state = oauthStateService.createState("native".equalsIgnoreCase(platform));
         String authorizationUrl = googleOAuthService.buildAuthorizationUrl(
                 state.redirectUri(),
                 state.signedState(),

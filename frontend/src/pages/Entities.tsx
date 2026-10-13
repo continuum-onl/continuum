@@ -25,7 +25,6 @@ import {
   Check,
   X,
 } from "@/lib/heroicons";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { FilterChips } from "@/components/ui/filter-chips";
 import { FitText } from "@/components/ui/fit-text";
 import { ListRowContent } from "@/components/ui/list-row-content";
@@ -71,43 +70,6 @@ function relativeDate(iso: string): string {
   if (diff < day * 7) return `${Math.floor(diff / day)}d ago`;
   if (diff < day * 30) return `${Math.floor(diff / (day * 7))}w ago`;
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-/* ── Sidebar nav item ─────────────────────────────────────────────────── */
-
-interface NavItemProps {
-  label: string;
-  count: number;
-  active: boolean;
-  onClick: () => void;
-}
-
-function NavItem({ label, count, active, onClick }: NavItemProps) {
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      className={cn(
-        "group flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-[13px] normal-case transition-colors",
-        active ? "text-foreground" : "text-muted-foreground hover:text-muted-foreground"
-      )}
-      onClick={onClick}
-    >
-      <span className="flex items-center gap-2">
-        <span
-          aria-hidden
-          className={cn(
-            "h-px w-3 transition-all",
-            active ? "bg-foreground w-5" : "bg-foreground/20 group-hover:bg-foreground/40"
-          )}
-        />
-        {label}
-      </span>
-      <span className={cn("font-mono text-[10px] tabular-nums", active ? "text-muted-foreground" : "text-muted-foreground")}>
-        {count}
-      </span>
-    </Button>
-  );
 }
 
 /* ── Row with long-press → select ────────────────────────────────────── */
@@ -165,7 +127,6 @@ export default function Entities() {
   const [createOpen, setCreateOpen] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [pendingDeleteEntity, setPendingDeleteEntity] = useState<Entity | null>(null);
-  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 
   // Multiselect
   const [selectMode, setSelectMode] = useState(false);
@@ -328,54 +289,10 @@ export default function Entities() {
     za: t("list_sort_za"),
   };
 
-  const SidebarContent = (
-    <div className="space-y-7">
-      <div>
-        <p className="mb-3 text-[10px] uppercase tracking-[0.32em] text-muted-foreground">{t("notes_index")}</p>
-        <div className="space-y-0.5">
-          <NavItem
-            label={t("entities_all")}
-            count={counts.all}
-            active={!selectedType}
-            onClick={() => { setSelectedType(null); setFilterDrawerOpen(false); }}
-          />
-        </div>
-      </div>
-
-      <div>
-        <p className="mb-3 text-[10px] uppercase tracking-[0.32em] text-muted-foreground">{t("notes_types")}</p>
-        <div className="space-y-0.5">
-          {types.map((tp) => (
-            <NavItem
-              key={tp}
-              label={t(`entities_type_${tp}`) ?? typeLabels[tp]}
-              count={counts.byType[tp] || 0}
-              active={selectedType === tp}
-              onClick={() => { setSelectedType(tp); setFilterDrawerOpen(false); }}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <AppLayout>
       <div className="relative min-h-full">
-        {/* Menu Lateral Mobile */}
-        <Sheet open={filterDrawerOpen} onOpenChange={setFilterDrawerOpen}>
-          <SheetContent side="left" className="w-[280px] border-border/10 bg-background/95 p-6">
-            <p className="mb-6 font-serif text-2xl text-foreground">{t("notes_filters")}</p>
-            {SidebarContent}
-          </SheetContent>
-        </Sheet>
-
-        <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-5 lg:flex-row lg:gap-16 lg:px-12 lg:py-16">
-          {/* Sidebar Desktop */}
-          <aside className="hidden lg:sticky lg:top-16 lg:block lg:w-52 lg:shrink-0 lg:self-start">
-            {SidebarContent}
-          </aside>
-
+        <div className="mx-auto max-w-6xl px-6 py-5 lg:px-12 lg:py-10">
           {/* Conteúdo Principal */}
           <main className="min-w-0 flex-1">
             {/* Header (desktop) */}
@@ -389,8 +306,11 @@ export default function Entities() {
                   <p className="mt-2 text-sm text-muted-foreground">{t("entities_tagline")}</p>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
-                  <Button size="sm" className="gap-2" onClick={() => setCreateOpen(true)}>
-                    <Plus className="h-3.5 w-3.5" /> {t("entities_new")}
+                  <Button
+                    className="h-auto gap-2 rounded-full bg-foreground px-6 py-3 text-[15px] font-medium text-background shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition active:scale-95 hover:bg-foreground"
+                    onClick={() => setCreateOpen(true)}
+                  >
+                    <Plus className="h-4 w-4" /> {t("entities_new")}
                   </Button>
                 </div>
 
@@ -398,7 +318,7 @@ export default function Entities() {
             </header>
 
             {/* Mobile: search + type chips */}
-            <div className="mb-5 space-y-3 lg:hidden">
+            <div className="mb-5 space-y-3">
               <div className="flex items-center gap-2">
                 <div className="relative z-0 flex-1">
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -409,7 +329,7 @@ export default function Entities() {
                     className="h-12 w-full rounded-2xl bg-accent pl-11 text-[15px] placeholder:italic placeholder:text-muted-foreground"
                   />
                 </div>
-                <ListSortMenu value={sortMode} onValueChange={setSortMode} labels={sortLabels} />
+                <ListSortMenu className="lg:h-12 lg:w-12 lg:rounded-2xl" value={sortMode} onValueChange={setSortMode} labels={sortLabels} />
               </div>
               <FilterChips
                 value={selectedType ?? "ALL"}
@@ -423,24 +343,6 @@ export default function Entities() {
                 ]}
               />
             </div>
-
-            {/* Input de Busca Fixo (desktop) */}
-            <div className="sticky top-14 z-10 -mx-4 hidden border-b border-border/10 bg-background/70 px-4 py-3 backdrop-blur-xl lg:block">
-              <div className="flex items-center gap-2">
-                <div className="relative min-w-0 flex-1">
-                  <Search className="pointer-events-none absolute left-0 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    variant="ghost"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder={t("common_search") + "…"}
-                    className="w-full border-0 bg-transparent pl-6 text-sm text-foreground placeholder:italic placeholder:text-muted-foreground focus:outline-none focus:ring-0"
-                  />
-                </div>
-                <ListSortMenu value={sortMode} onValueChange={setSortMode} labels={sortLabels} />
-              </div>
-            </div>
-
 
             {/* Selection action bar */}
             {selectMode && (

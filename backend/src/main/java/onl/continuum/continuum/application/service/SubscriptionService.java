@@ -79,7 +79,7 @@ public class SubscriptionService {
                 .orElseThrow(() -> new NotFoundException("User not found"));
         try {
             String customerId = stripe.ensureCustomer(user.getStripeCustomerId(), userId, email);
-            if (user.getStripeCustomerId() == null || user.getStripeCustomerId().isBlank()) {
+            if (!customerId.equals(user.getStripeCustomerId())) {
                 user.setStripeCustomerId(customerId);
                 userRepo.save(user);
             }
@@ -88,6 +88,26 @@ public class SubscriptionService {
             log.error("[Stripe] Failed to prepare checkout customer: {}", e.getMessage(), e);
             throw new StripeIntegrationException("Failed to create Stripe checkout: " + e.getMessage(), e);
         }
+    }
+
+    public CheckoutResponse createEmbeddedCheckout(String userId, String email, String priceOrPlan) {
+        User user = userRepo.findById(userId)
+                .orElseThrow(() -> new NotFoundException("User not found"));
+        try {
+            String customerId = stripe.ensureCustomer(user.getStripeCustomerId(), userId, email);
+            if (!customerId.equals(user.getStripeCustomerId())) {
+                user.setStripeCustomerId(customerId);
+                userRepo.save(user);
+            }
+            return stripe.createEmbeddedCheckout(customerId, userId, email, priceOrPlan);
+        } catch (StripeException e) {
+            log.error("[Stripe] Failed to prepare embedded checkout customer: {}", e.getMessage(), e);
+            throw new StripeIntegrationException("Failed to create Stripe checkout: " + e.getMessage(), e);
+        }
+    }
+
+    public String getCheckoutPublishableKey() {
+        return stripe.getCheckoutPublishableKey();
     }
 
     public String createPortalSession(String userId) {
@@ -292,7 +312,7 @@ public class SubscriptionService {
     private void handleInvoicePaymentSucceeded(Event event) {
         Invoice invoice = (Invoice) deserialize(event);
         if (invoice == null) throw new IllegalStateException("Could not deserialize invoice payload");
-        String subId = invoice.getSubscription();
+        String subId = getInvoiceSubscriptionId(invoice);
         if (subId == null) {
             log.info("[Stripe][invoice-paid] invoice={} not tied to a subscription — skipping", invoice.getId());
             return;
@@ -311,7 +331,7 @@ public class SubscriptionService {
     private void handleInvoicePaymentFailed(Event event) {
         Invoice invoice = (Invoice) deserialize(event);
         if (invoice == null) throw new IllegalStateException("Could not deserialize invoice payload");
-        String subId = invoice.getSubscription();
+        String subId = getInvoiceSubscriptionId(invoice);
         if (subId == null) return;
         subRepo.findByStripeSubscriptionId(subId).ifPresent(local -> {
             local.setStatus(SubscriptionStatus.PAST_DUE);
@@ -426,8 +446,12 @@ public class SubscriptionService {
         local.setPlanType(determinePlan(priceId));
         local.setStatus(mapStatus(sSub.getStatus()));
         local.setCancelAtPeriodEnd(Boolean.TRUE.equals(sSub.getCancelAtPeriodEnd()));
-        local.setCurrentPeriodStart(toInstant(sSub.getCurrentPeriodStart()));
-        local.setCurrentPeriodEnd(toInstant(sSub.getCurrentPeriodEnd()));
+        var subscriptionItems = sSub.getItems() == null ? null : sSub.getItems().getData();
+        var periodItem = subscriptionItems == null || subscriptionItems.isEmpty()
+                ? null
+                : subscriptionItems.get(0);
+        local.setCurrentPeriodStart(toInstant(periodItem == null ? null : periodItem.getCurrentPeriodStart()));
+        local.setCurrentPeriodEnd(toInstant(periodItem == null ? null : periodItem.getCurrentPeriodEnd()));
         local.setTrialEnd(toInstant(sSub.getTrialEnd()));
         local.setCancelAt(toInstant(sSub.getCancelAt()));
         local.setCanceledAt(toInstant(sSub.getCanceledAt()));
@@ -517,6 +541,13 @@ public class SubscriptionService {
 
     private static Instant toInstant(Long epochSeconds) {
         return epochSeconds == null ? null : Instant.ofEpochSecond(epochSeconds);
+    }
+
+    private static String getInvoiceSubscriptionId(Invoice invoice) {
+        if (invoice.getParent() == null || invoice.getParent().getSubscriptionDetails() == null) {
+            return null;
+        }
+        return invoice.getParent().getSubscriptionDetails().getSubscription();
     }
 
     private static StripeObject deserialize(Event event) {

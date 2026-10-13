@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { useLanguage } from "@/contexts/LanguageContext";
 import AppLayout from "@/components/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { notesApi, vaultApi } from "@/lib/api";
+import { getAllNoteTypes, noteTypesApi, notesApi, vaultApi } from "@/lib/api";
 import { usePlanGate } from "@/hooks/usePlanGate";
 import { useCachedResource } from "@/hooks/useCachedResource";
 import { qk, STALE } from "@/lib/queries";
@@ -26,7 +27,6 @@ import {
   Upload,
   ChevronDown,
   ChevronRight,
-  SlidersHorizontal,
   Check,
   X,
   Tag,
@@ -47,7 +47,7 @@ import { FloatingCreateButton } from "@/components/ui/floating-create-button";
 import { ListSortMenu, type ListSortMode } from "@/components/ui/list-sort-menu";
 
 
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import SmoothDrawer from "@/components/ui/smooth-drawer";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useLongPress } from "@/hooks/useLongPress";
@@ -154,12 +154,12 @@ function NavItem({ label, count, active, onClick }: NavItemProps) {
           aria-hidden
           className={cn(
             "h-px w-3 transition-all",
-            active ? "bg-foreground w-5" : "bg-foreground/20 group-hover:bg-foreground/40"
+            active ? "w-5 bg-foreground" : "bg-foreground/20 group-hover:bg-foreground/40"
           )}
         />
-        {label}
+        <span className="truncate">{label}</span>
       </span>
-      <span className={cn("font-mono text-[10px] tabular-nums", active ? "text-muted-foreground" : "text-muted-foreground")}>
+      <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
         {count}
       </span>
     </Button>
@@ -215,9 +215,11 @@ export default function Notes() {
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [collapsedMonths, setCollapsedMonths] = useState<Set<string>>(new Set());
   const [pendingDelete, setPendingDelete] = useState<NoteSummary | null>(null);
+  const [pendingTypeDelete, setPendingTypeDelete] = useState<string | null>(null);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(false);
   const [othersChipActive, setOthersChipActive] = useState(false);
 
   // Multiselect
@@ -239,7 +241,7 @@ export default function Notes() {
     const touch = event.touches[0];
     const target = event.target;
     const excluded = target instanceof Element && !!target.closest(
-      "input, textarea, select, [contenteditable='true'], [role='dialog'], [data-radix-popper-content-wrapper]",
+      "input, textarea, select, [contenteditable='true'], [role='dialog'], [data-radix-popper-content-wrapper], [data-filter-chips]",
     );
     indexSwipeStart.current = {
       x: touch.clientX,
@@ -256,8 +258,9 @@ export default function Notes() {
 
     const touch = event.changedTouches[0];
     const dx = touch.clientX - start.x;
+    const horizontalDistance = Math.abs(dx);
     const dy = Math.abs(touch.clientY - start.y);
-    if (dx >= 60 && dy <= dx * 0.75 && Date.now() - start.startedAt <= 1000) {
+    if (horizontalDistance >= 60 && dy <= horizontalDistance * 0.75 && Date.now() - start.startedAt <= 1000) {
       setFilterDrawerOpen(true);
     }
   };
@@ -273,11 +276,8 @@ export default function Notes() {
   );
   const typesQuery = useCachedResource<string[]>(
     qk.noteTypes(),
-    async () => {
-      const res = await notesApi.getTypes();
-      return Array.isArray(res.data) ? res.data : [];
-    },
-    { staleTime: STALE.list }
+    getAllNoteTypes,
+    { staleTime: STALE.list, refetchOnMount: "always" }
   );
   const loading =
     notesQuery.loading ||
@@ -348,6 +348,49 @@ export default function Notes() {
 
   const handleCreate = () => {
     void createNote();
+  };
+
+  const createNoteType = async () => {
+    const name = window.prompt(t("notes_new_type_prompt"));
+    const cleanName = name?.trim();
+    if (!cleanName) return;
+
+    try {
+      const { data } = await noteTypesApi.create(cleanName);
+      const nextTypes = [...new Set([...types, data.name])].sort((a, b) => a.localeCompare(b));
+      setTypes(nextTypes);
+      typesQuery.setData(nextTypes);
+      toast({ title: t("notes_type_created", { type: data.name }) });
+    } catch (error) {
+      console.error("[Notes] type creation failed", error);
+      toast({ title: t("notes_type_create_failed"), variant: "destructive" });
+    }
+  };
+
+  const confirmDeleteType = async () => {
+    if (!pendingTypeDelete) return;
+    const type = pendingTypeDelete;
+    try {
+      await noteTypesApi.delete(type);
+      const nextTypes = types.filter((item) => item !== type);
+      const updatedAt = new Date().toISOString();
+      const nextNotes = notes.map((note) => note.type === type ? { ...note, type: undefined, updatedAt } : note);
+      setTypes(nextTypes);
+      typesQuery.setData(nextTypes);
+      setNotes(nextNotes);
+      notesQuery.setData(nextNotes);
+      notes.filter((note) => note.type === type).forEach((note) => {
+        queryClient.setQueryData<{ type?: string }>(qk.note(note.id), (detail) =>
+          detail ? { ...detail, type: undefined } : detail
+        );
+      });
+      if (selectedType === type) setSelectedType(null);
+      setPendingTypeDelete(null);
+      toast({ title: t("notes_type_deleted", { type }) });
+    } catch (error) {
+      console.error("[Notes] type deletion failed", error);
+      toast({ title: t("notes_type_delete_failed"), variant: "destructive" });
+    }
   };
 
 
@@ -567,39 +610,116 @@ export default function Notes() {
           : t("notes_view_dormant");
 
   const SidebarContent = (
+    <div className="border-t border-border/15 pt-4">
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">{t("notes_types")}</p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="iconSm"
+          aria-label={t("notes_create_type")}
+          title={t("notes_create_type")}
+          onClick={() => void createNoteType()}
+          className="h-7 w-7 text-muted-foreground/70 hover:text-foreground"
+        >
+          <Plus className="h-3.5 w-3.5" />
+        </Button>
+      </div>
+      <div className="divide-y divide-border/10">
+        <button
+          type="button"
+          onClick={() => setSelectedType(null)}
+          className={cn(
+            "group flex w-full items-center justify-between border-l-2 px-3 py-3 text-left text-[13px] transition-colors",
+            !selectedType
+              ? "border-foreground text-foreground"
+              : "border-transparent text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <span>{t("notes_allTypes")}</span>
+          <span className="font-mono text-[10px] tabular-nums text-muted-foreground">{counts.all}</span>
+        </button>
+        {types.map((tp) => (
+          <div key={tp} className="group flex items-center border-b border-border/10 last:border-0">
+            <button
+              type="button"
+              onClick={() => setSelectedType(tp)}
+              className={cn(
+                "flex min-w-0 flex-1 items-center justify-between border-l-2 px-3 py-3 text-left text-[13px] transition-colors",
+                selectedType === tp
+                  ? "border-foreground text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <span className="truncate">{tp}</span>
+              <span className="ml-3 font-mono text-[10px] tabular-nums text-muted-foreground">{counts.byType[tp] || 0}</span>
+            </button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="iconSm"
+              aria-label={t("notes_delete_type", { type: tp })}
+              title={t("notes_delete_type", { type: tp })}
+              onClick={() => setPendingTypeDelete(tp)}
+              className="mr-1 h-7 w-7 shrink-0 text-muted-foreground/50 opacity-100 transition-opacity hover:text-destructive focus-visible:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const DrawerFilterContent = (
     <div className="space-y-7">
       <div>
-        <p className="mb-3 text-[10px] uppercase tracking-[0.32em] text-muted-foreground">{t("notes_index")}</p>
+        <div className="mb-3 flex items-center justify-between">
+          <p className="text-[10px] uppercase tracking-[0.32em] text-muted-foreground">{t("notes_types")}</p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={t("notes_create_type")}
+            title={t("notes_create_type")}
+            onClick={() => void createNoteType()}
+            className="h-9 w-9 text-muted-foreground/70 hover:text-foreground"
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
         <div className="space-y-0.5">
-          <NavItem label={t("notes_archive")} count={counts.all} active={view === "all"} onClick={() => { setView("all"); setFilterDrawerOpen(false); }} />
-          <NavItem label={t("notes_recent")} count={counts.recent} active={view === "recent"} onClick={() => { setView("recent"); setFilterDrawerOpen(false); }} />
-          <NavItem label={t("notes_favorites")} count={counts.favorites} active={view === "favorites"} onClick={() => { setView("favorites"); setFilterDrawerOpen(false); }} />
-          <NavItem label={t("notes_dormant")} count={counts.archived} active={view === "archived"} onClick={() => { setView("archived"); setFilterDrawerOpen(false); }} />
+          <NavItem
+            label={t("notes_allTypes")}
+            count={counts.all}
+            active={!selectedType}
+            onClick={() => { setSelectedType(null); setFilterDrawerOpen(false); }}
+          />
+          {types.map((tp) => (
+            <div key={tp} className="group flex items-center gap-1">
+              <div className="min-w-0 flex-1">
+                <NavItem
+                  label={tp}
+                  count={counts.byType[tp] || 0}
+                  active={selectedType === tp}
+                  onClick={() => { setSelectedType(tp); setFilterDrawerOpen(false); }}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={t("notes_delete_type", { type: tp })}
+                title={t("notes_delete_type", { type: tp })}
+                onClick={() => setPendingTypeDelete(tp)}
+                className="h-9 w-9 shrink-0 text-muted-foreground/60 hover:text-destructive"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ))}
         </div>
       </div>
-
-      {types.length > 0 && (
-        <div>
-          <p className="mb-3 text-[10px] uppercase tracking-[0.32em] text-muted-foreground">{t("notes_types")}</p>
-          <div className="space-y-0.5">
-            <NavItem
-              label={t("notes_allTypes")}
-              count={counts.all}
-              active={!selectedType}
-              onClick={() => { setSelectedType(null); setFilterDrawerOpen(false); }}
-            />
-            {types.map((tp) => (
-              <NavItem
-                key={tp}
-                label={tp}
-                count={counts.byType[tp] || 0}
-                active={selectedType === tp}
-                onClick={() => { setSelectedType(tp); setFilterDrawerOpen(false); }}
-              />
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 
@@ -629,31 +749,22 @@ export default function Notes() {
         )}
 
         {/* Mobile filter drawer */}
-        <Sheet
+        <SmoothDrawer
+          title={t("notes_filters")}
           open={filterDrawerOpen}
           onOpenChange={(open) => {
             setFilterDrawerOpen(open);
             if (!open) setOthersChipActive(false);
           }}
         >
-          <SheetContent
-            side="left"
-            className="w-[min(84vw,320px)] rounded-r-2xl border-border/10 bg-muted/60 p-6 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-[6px] supports-[backdrop-filter]:bg-muted/60"
-            onTouchStart={(event) => event.stopPropagation()}
-          >
-            <p className="mb-6 font-serif text-2xl text-foreground">{t("notes_filters")}</p>
-            {SidebarContent}
-          </SheetContent>
-        </Sheet>
+          <div className="px-6 pb-6 pt-4" onTouchStart={(event) => event.stopPropagation()}>
+            {DrawerFilterContent}
+          </div>
+        </SmoothDrawer>
 
-        <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-5 lg:flex-row lg:gap-16 lg:px-12 lg:py-16">
-          {/* ─── Sidebar (desktop only) ──────────────────────────── */}
-          <aside className="hidden lg:sticky lg:top-16 lg:block lg:w-52 lg:shrink-0 lg:self-start">
-            {SidebarContent}
-          </aside>
-  
+        <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-5 lg:flex-row lg:items-start lg:gap-14 lg:px-12 lg:py-10">
           {/* ─── Main ────────────────────────────────────────────── */}
-          <main className="min-w-0 flex-1">
+          <motion.main layout="position" transition={{ layout: { type: "spring", stiffness: 280, damping: 30 } }} className="min-w-0 flex-1">
             {/* Header (desktop) */}
             <header className="mb-8 hidden lg:block">
               <div className="flex items-end justify-between gap-4">
@@ -662,8 +773,12 @@ export default function Notes() {
                   <h1 className="mt-2 font-serif text-5xl tracking-tight text-foreground">{t("notes_title")}</h1>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
-                  <Button onClick={handleCreate} className="gap-2" disabled={creating}>
-                    <Plus className="h-3.5 w-3.5" /> {creating ? t("notes_creating") : t("notes_new")}
+                  <Button
+                    onClick={handleCreate}
+                    className="h-auto gap-2 rounded-full bg-foreground px-6 py-3 text-[15px] font-medium text-background shadow-[0_10px_30px_rgba(0,0,0,0.45)] transition active:scale-95 hover:bg-foreground disabled:opacity-60"
+                    disabled={creating}
+                  >
+                    <Plus className="h-4 w-4" /> {creating ? t("notes_creating") : t("notes_new")}
                   </Button>
                 </div>
 
@@ -672,7 +787,7 @@ export default function Notes() {
             </header>
 
             {/* Mobile: search + view chips */}
-            <div className="mb-5 space-y-3 lg:hidden">
+            <div className="mb-5 space-y-3">
                 <div className="flex items-center gap-2">
                   <div className="relative z-0 flex-1">
                     <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -683,15 +798,33 @@ export default function Notes() {
                       className="h-12 w-full rounded-2xl bg-accent pl-11 text-[15px] placeholder:italic placeholder:text-muted-foreground"
                     />
                   </div>
-                  <ListSortMenu value={sortMode} onValueChange={setSortMode} labels={sortLabels(t)} />
+                  <ListSortMenu className="lg:h-12 lg:w-12 lg:rounded-2xl" value={sortMode} onValueChange={setSortMode} labels={sortLabels(t)} />
                 </div>
-              <div onTouchStart={(event) => event.stopPropagation()}>
+              <div
+                data-filter-chips
+                onTouchStart={(event) => {
+                  indexSwipeStart.current = null;
+                  event.stopPropagation();
+                }}
+                onTouchEnd={(event) => {
+                  indexSwipeStart.current = null;
+                  event.stopPropagation();
+                }}
+                onTouchCancel={(event) => {
+                  indexSwipeStart.current = null;
+                  event.stopPropagation();
+                }}
+              >
                 <FilterChips
-                  value={othersChipActive ? "others" : view}
+                  value={othersChipActive || desktopSidebarOpen ? "others" : view}
                   onChange={(v) => {
                     if (v === "others") {
-                      setOthersChipActive(true);
-                      setFilterDrawerOpen(true);
+                      if (window.matchMedia("(min-width: 1024px)").matches) {
+                        setDesktopSidebarOpen((open) => !open);
+                      } else {
+                        setOthersChipActive(true);
+                        setFilterDrawerOpen(true);
+                      }
                       return;
                     }
                     setOthersChipActive(false);
@@ -707,24 +840,6 @@ export default function Notes() {
                 />
               </div>
             </div>
-
-            {/* Sticky search (desktop) */}
-            <div className="sticky top-14 z-10 -mx-4 hidden border-b border-border/10 bg-background/70 px-4 py-3 backdrop-blur-xl lg:block">
-              <div className="flex items-center gap-2">
-                <div className="relative min-w-0 flex-1">
-                  <Search className="pointer-events-none absolute left-0 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    variant="ghost"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder={t("notes_searchPlaceholder")}
-                    className="w-full border-0 bg-transparent pl-6 text-sm text-foreground placeholder:italic placeholder:text-muted-foreground focus:outline-none focus:ring-0"
-                  />
-                </div>
-                <ListSortMenu value={sortMode} onValueChange={setSortMode} labels={sortLabels(t)} />
-              </div>
-            </div>
-
 
             {/* Selection action bar */}
             {selectMode && (
@@ -981,7 +1096,22 @@ export default function Notes() {
                 })}
               </div>
             )}
-          </main>
+          </motion.main>
+          <AnimatePresence initial={false}>
+            {desktopSidebarOpen && (
+              <motion.aside
+                id="notes-desktop-filters"
+                aria-label={t("notes_filters")}
+                initial={{ opacity: 0, x: 18 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 18 }}
+                transition={{ duration: 0.22, ease: "easeOut" }}
+                className="hidden w-64 shrink-0 lg:sticky lg:top-10 lg:block lg:self-start"
+              >
+                {SidebarContent}
+              </motion.aside>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
@@ -1021,6 +1151,15 @@ export default function Notes() {
         confirmText={bulkDeleting ? t("notes_removing") : t("notes_remove")}
         destructive
         onConfirm={confirmBulkDelete}
+      />
+      <ConfirmDialog
+        open={pendingTypeDelete !== null}
+        onOpenChange={(open) => !open && setPendingTypeDelete(null)}
+        title={t("notes_delete_type_title")}
+        description={t("notes_delete_type_desc", { type: pendingTypeDelete ?? "" })}
+        confirmText={t("notes_remove")}
+        destructive
+        onConfirm={confirmDeleteType}
       />
     </AppLayout>
   );

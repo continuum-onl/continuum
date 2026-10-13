@@ -9,9 +9,10 @@ public record ExportDataDTO(
     String exportedAt,
     String userId,
     List<NoteExportDTO> notes,
-    List<EntityExportDTO> entities
+    List<EntityExportDTO> entities,
+    List<String> noteTypes
 ) {
-    public static ExportDataDTO from(String userId, List<Note> notes, List<Entity> entities) {
+    public static ExportDataDTO from(String userId, List<Note> notes, List<Entity> entities, List<String> noteTypes) {
         List<NoteExportDTO> noteList = notes.stream()
             .map(n -> new NoteExportDTO(n.getId(), n.getTitle(), n.getContent(), n.getEntityIds(), n.getCreatedAt(), n.getUpdatedAt()))
             .toList();
@@ -20,7 +21,7 @@ public record ExportDataDTO(
             .map(e -> new EntityExportDTO(e.getId(), e.getTitle(), e.getDescription(), e.getType().name(), e.getTrackingDates(), e.getCreatedAt()))
             .toList();
         
-        return new ExportDataDTO(Instant.now().toString(), userId, noteList, entityList);
+        return new ExportDataDTO(Instant.now().toString(), userId, noteList, entityList, noteTypes);
     }
 
     public record NoteExportDTO(

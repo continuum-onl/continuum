@@ -104,11 +104,8 @@ export function installOfflineLayer(api: AxiosInstance) {
       const cfg = response.config as InternalAxiosRequestConfig;
       const method = (cfg.method || "get").toUpperCase();
       if (method === "GET" && isCacheable(cfg.url)) {
-        try {
-          await cacheGet(fullKey(cfg), response.status, response.data);
-        } catch {
-          /* ignore */
-        }
+        // Fire-and-forget: never make the UI wait on the offline cache write.
+        void cacheGet(fullKey(cfg), response.status, response.data).catch(() => undefined);
       }
       return response;
     },

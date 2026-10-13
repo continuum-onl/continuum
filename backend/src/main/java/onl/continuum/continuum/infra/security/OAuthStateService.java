@@ -40,6 +40,11 @@ public class OAuthStateService {
     }
 
     public OAuthState createState() {
+        return createState(false);
+    }
+
+    /** nativeApp=true marks the flow so the web callback hands the code back to the Android app. */
+    public OAuthState createState(boolean nativeApp) {
         String nonce = UUID.randomUUID().toString();
         String stateToken = Jwts.builder()
                 .setSubject("google-oauth")
@@ -48,6 +53,7 @@ public class OAuthStateService {
                 // IMPORTANTE: guardamos a URL EXATA enviada ao Google na etapa 1.
                 // O Google exige que a etapa 2 (troca do code) use a mesma string.
                 .claim("redirectUri", googleRedirectUrl)
+                .claim("platform", nativeApp ? "native" : "web")
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + STATE_EXPIRATION_MS))
                 .signWith(stateKey, SignatureAlgorithm.HS256)

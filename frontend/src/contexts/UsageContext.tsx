@@ -61,16 +61,16 @@ async function buildFallbackUsage(): Promise<UserUsage> {
     }),
   ]);
 
-  const notes = notesRes.status === "fulfilled" && Array.isArray(notesRes.value.data)
-    ? notesRes.value.data
+  const notes = notesRes.status === "fulfilled" && Array.isArray(notesRes.value)
+    ? notesRes.value
     : [];
 
-  const entities = entitiesRes.status === "fulfilled" && Array.isArray(entitiesRes.value.data)
-    ? entitiesRes.value.data
+  const entities = entitiesRes.status === "fulfilled" && Array.isArray(entitiesRes.value)
+    ? entitiesRes.value
     : [];
 
-  const files = vaultRes.status === "fulfilled" && Array.isArray(vaultRes.value.data)
-    ? vaultRes.value.data
+  const files = vaultRes.status === "fulfilled" && Array.isArray(vaultRes.value)
+    ? vaultRes.value
     : [];
 
   const activitiesCount = entities.filter((entity: { type?: EntityType }) => entity.type === "ACTIVITY").length;

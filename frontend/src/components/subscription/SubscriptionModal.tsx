@@ -1,11 +1,13 @@
-import { useVisionPrice } from "@/hooks/useVisionPrice";
-import { useEffect, useMemo, useState } from "react";
-import api, { plansApi, subscriptionApi } from "@/lib/api";
+import { AdaptiveCheckoutDialog } from "@/components/subscription/AdaptiveCheckoutDialog";
+import { useAdaptiveCheckout } from "@/hooks/useAdaptiveCheckout";
+import { useEffect, useState } from "react";
+import { isAxiosError } from "axios";
+import { subscriptionApi } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { isUnlimited } from "@/lib/plan";
-import { type Plan, type PlanLimits } from "@/types";
+import type { Plan } from "@/types";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,10 +17,10 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  ArrowPathIcon,
   ArrowRightIcon,
   CheckIcon,
 } from "@heroicons/react/24/outline";
+import { Loader2 } from "lucide-react";
 
 interface SubInfo {
   plan?: string;
@@ -41,12 +43,13 @@ export default function SubscriptionModal({ open, onOpenChange }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
   const { t } = useLanguage();
-  const visionPrice = useVisionPrice();
   const [sub, setSub] = useState<SubInfo | null>(null);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
-  const [plans, setPlans] = useState<Array<{ plan: Plan; limits: PlanLimits; priceId?: string }>>([]);
-  const [prices, setPrices] = useState<{ monthly?: string }>({});
+  const [checkoutMode, setCheckoutMode] = useState(false);
+  const currentPlan = ((sub?.effectivePlan || user?.plan) as Plan | string) || "FREE";
+  const normalizedPlan = currentPlan === "PRO" ? ("VISION" as Plan) : (currentPlan as Plan);
+  const isPro = normalizedPlan === "VISION";
+  const adaptiveCheckout = useAdaptiveCheckout((open || checkoutMode) && !isPro);
 
   const VISION_BENEFITS = [
     t("bill_benefit_unlimited_notes_entities"),
@@ -59,30 +62,16 @@ export default function SubscriptionModal({ open, onOpenChange }: Props) {
   useEffect(() => {
     if (!open) return;
     subscriptionApi.me().then(({ data }) => setSub(data)).catch(() => {});
-    api
-      .get("/api/plans/prices")
-      .then(({ data }) => setPrices({ monthly: data?.vision?.monthly }))
-      .catch(() => {});
   }, [open]);
 
-  const currentPlan = ((sub?.effectivePlan || user?.plan) as Plan | string) || "FREE";
-  const normalizedPlan = currentPlan === "PRO" ? ("VISION" as Plan) : (currentPlan as Plan);
-  const isPro = normalizedPlan === "VISION";
+  useEffect(() => {
+    if (open) setCheckoutMode(false);
+  }, [open]);
 
-
-  const handleCheckout = async () => {
-    setCheckoutLoading(true);
-    try {
-      const { data } = await subscriptionApi.checkout(prices.monthly || "VISION");
-      if (data?.url) window.location.href = data.url;
-    } catch (err: any) {
-      toast({
-        title: t("bill_error"),
-        description: err.response?.data?.message || t("bill_try_again"),
-        variant: "destructive",
-      });
-      setCheckoutLoading(false);
-    }
+  const handleCheckout = () => {
+    setCheckoutMode(true);
+    onOpenChange(false);
+    adaptiveCheckout.openCheckout();
   };
 
   const handlePortal = async () => {
@@ -90,10 +79,13 @@ export default function SubscriptionModal({ open, onOpenChange }: Props) {
     try {
       const { data } = await subscriptionApi.portal();
       if (data?.url) window.location.href = data.url;
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const message = isAxiosError<{ message?: string }>(err)
+        ? err.response?.data?.message || t("bill_portal_error")
+        : t("bill_portal_error");
       toast({
         title: t("bill_error"),
-        description: err.response?.data?.message || t("bill_portal_error"),
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -117,7 +109,15 @@ export default function SubscriptionModal({ open, onOpenChange }: Props) {
                 VISION
               </DialogTitle>
               <div className="text-right">
-                <p className="font-serif text-3xl text-foreground">{visionPrice}</p>
+                <p className="flex min-h-9 items-center justify-end font-serif text-3xl text-foreground" aria-live="polite">
+                  {adaptiveCheckout.loading && adaptiveCheckout.price === "…" ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-label={t("bill_price_refreshing")} />
+                  ) : (
+                    adaptiveCheckout.price === "…"
+                      ? t("bill_price_localized_in_checkout")
+                      : adaptiveCheckout.price
+                  )}
+                </p>
                 <p className="mt-1 text-[10px] uppercase tracking-[0.28em] text-muted-foreground">
                   {t("bill_per_month")}
                 </p>
@@ -189,17 +189,10 @@ export default function SubscriptionModal({ open, onOpenChange }: Props) {
                 variant="white"
                 size="lg"
                 onClick={handleCheckout}
-                disabled={checkoutLoading}
                 className="group w-full justify-center gap-2"
               >
-                {checkoutLoading ? (
-                  <ArrowPathIcon className="h-4 w-4 animate-spin" />
-                ) : (
-                  <>
-                    {t("bill_upgrade_to_vision")}
-                    <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                  </>
-                )}
+                {t("bill_upgrade_to_vision")}
+                <ArrowRightIcon className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
               </Button>
             )}
             <p className="text-center text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
@@ -208,6 +201,7 @@ export default function SubscriptionModal({ open, onOpenChange }: Props) {
           </div>
         </div>
       </DialogContent>
+      <AdaptiveCheckoutDialog state={adaptiveCheckout} />
     </Dialog>
   );
 }

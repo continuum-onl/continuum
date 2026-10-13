@@ -1,10 +1,13 @@
-import { useVisionPrice } from "@/hooks/useVisionPrice";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CheckIcon, MinusIcon } from "@heroicons/react/24/outline";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { PageBackButton } from "@/components/PageBackButton";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAdaptiveCheckout } from "@/hooks/useAdaptiveCheckout";
+import { Loader2 } from "lucide-react";
+import { getVisitorPrice } from "@/lib/visitor-price";
 
 type Row = { label: string; free: string | boolean; vision: string | boolean };
 
@@ -24,7 +27,20 @@ function Cell({ value, accent }: { value: string | boolean; accent?: boolean }) 
 export default function Pricing() {
   const navigate = useNavigate();
   const { t } = useLanguage();
-  const visionPrice = useVisionPrice();
+  const { user } = useAuth();
+  const isVision = user?.plan === "VISION";
+  const adaptiveCheckout = useAdaptiveCheckout(Boolean(user && !isVision));
+  const priceLoading = Boolean(
+    user && !isVision && adaptiveCheckout.loading && adaptiveCheckout.price === "…",
+  );
+  const visitorPrice = getVisitorPrice(
+    typeof navigator === "undefined" ? [] : [navigator.language, ...navigator.languages],
+  );
+  const visionPrice = user
+    ? adaptiveCheckout.price === "…"
+      ? t("bill_price_localized_in_checkout")
+      : adaptiveCheckout.price
+    : visitorPrice ?? t("bill_price_check_checkout");
 
   const rows: Row[] = [
     { label: t("bill_row_notes"), free: "50", vision: t("bill_unlimited") },
@@ -60,7 +76,13 @@ export default function Pricing() {
             </div>
             <div className="text-center">
               <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">{t("bill_vision")}</p>
-              <p className="mt-2 font-serif text-2xl text-foreground">{visionPrice}</p>
+              <p className="mt-2 flex min-h-8 items-center justify-center font-serif text-xl text-foreground" aria-live="polite">
+                {priceLoading ? (
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-label={t("bill_price_refreshing")} />
+                ) : (
+                  visionPrice
+                )}
+              </p>
               <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">{t("bill_per_month")}</p>
             </div>
           </div>

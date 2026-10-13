@@ -8,6 +8,7 @@ import {
   dashboardApi,
   subscriptionApi,
   timeTrackingApi,
+  getAllNoteTypes,
 } from "@/lib/api";
 import type { Entity } from "@/types";
 import type { QueryKey } from "@tanstack/react-query";
@@ -30,6 +31,29 @@ let activePrefetch: Promise<void> | null = null;
 let activePrefetchEpoch: number | null = null;
 let rerunRequested = false;
 
+export interface PrefetchProgress {
+  active: boolean;
+  completed: number;
+  total: number | null;
+}
+
+let prefetchProgress: PrefetchProgress = { active: false, completed: 0, total: null };
+const progressListeners = new Set<() => void>();
+
+export function subscribePrefetchProgress(listener: () => void) {
+  progressListeners.add(listener);
+  return () => progressListeners.delete(listener);
+}
+
+export function getPrefetchProgress() {
+  return prefetchProgress;
+}
+
+function updatePrefetchProgress(next: PrefetchProgress) {
+  prefetchProgress = next;
+  progressListeners.forEach((listener) => listener());
+}
+
 export function prefetchPrimaryLists(): Promise<void> {
   const epoch = getQueryCacheEpoch();
   if (activePrefetch && activePrefetchEpoch === epoch) {
@@ -38,9 +62,11 @@ export function prefetchPrimaryLists(): Promise<void> {
   }
   if (activePrefetch) return activePrefetch.then(() => prefetchPrimaryLists());
 
+  updatePrefetchProgress({ active: true, completed: 0, total: null });
   const run = runPrimaryPrefetch(epoch);
   activePrefetch = run.finally(() => {
     if (activePrefetch === run || activePrefetchEpoch === epoch) {
+      updatePrefetchProgress({ active: false, completed: 0, total: null });
       activePrefetch = null;
       activePrefetchEpoch = null;
       const rerun = rerunRequested;
@@ -84,12 +110,15 @@ async function runPrimaryPrefetch(epoch: number) {
   ]);
 
   if (epoch !== getQueryCacheEpoch()) return;
+  const completedLists = 2;
   if (entities !== undefined && !hasCompleteEntityList) {
     queryClient.setQueryData(ENTITY_LIST_PAGINATION_MARKER, true);
   }
   const cachedNotes = notes ?? queryClient.getQueryData<Array<{ id: string }>>(qk.notes()) ?? [];
   const cachedEntities = entities ?? queryClient.getQueryData<Entity[]>(qk.entities()) ?? [];
-  await runJobs(createJobs(cachedNotes, cachedEntities), epoch);
+  const jobs = Array.from(createJobs(cachedNotes, cachedEntities));
+  updatePrefetchProgress({ active: true, completed: completedLists, total: completedLists + jobs.length });
+  await runJobs(jobs, epoch);
 }
 
 function* createJobs(
@@ -100,7 +129,7 @@ function* createJobs(
     key: qk.noteTypes(),
     label: "note types",
     staleTime: STALE.list,
-    run: () => notesApi.getTypes().then((response) => response.data),
+    run: getAllNoteTypes,
   };
   yield {
     key: qk.folders(),
@@ -154,6 +183,12 @@ async function runJobs(jobs: Iterable<PrefetchJob>, epoch: number) {
           if (epoch !== getQueryCacheEpoch()) return;
           const job = batch[nextJob++];
           await fetchFresh(job.key, job.label, job.staleTime, job.run, epoch);
+          if (epoch === getQueryCacheEpoch()) {
+            updatePrefetchProgress({
+              ...prefetchProgress,
+              completed: Math.min(prefetchProgress.completed + 1, prefetchProgress.total ?? Infinity),
+            });
+          }
         }
       }),
     );
