@@ -2,24 +2,24 @@ import type { Module } from "./index";
 
 /**
  * Landing page copy (public marketing site).
- * Keyword-oriented for organic search: note taking app, second brain,
- * knowledge graph, linked notes, Obsidian alternative, markdown notes.
+ * Journal-app positioning for organic search: personal journal, daily entries,
+ * connected notes, memories and markdown journaling.
  */
 export const dict: Module = {
   en: {
-    lp_metaTitle: "Continuum — Second brain & note taking app with knowledge graph",
+    lp_metaTitle: "Continuum — Personal Journal App",
     lp_metaDescription:
-      "Continuum is a second brain app for linked notes: markdown notes, @mentions, an automatic knowledge graph, free native sync and smart resurfacing. A modern Obsidian alternative.",
+      "Continuum is a personal journal app for daily entries, thoughts and memories. Write in markdown, connect people and projects, and revisit your story.",
 
     lp_nav_signIn: "Sign in with Google",
     lp_accountDeletedTitle: "Account deleted",
     lp_accountDeletedDescription: "Your account and its data have been permanently deleted.",
 
     lp_hero_badge: "Continuum",
-    lp_hero_title: "Your second brain,",
+    lp_hero_title: "Your personal journal,",
     lp_hero_subtitle: "without the friction.",
     lp_hero_description:
-      "A note taking app built for linked thinking: markdown notes, an automatic knowledge graph, free native sync across devices and smart resurfacing that brings the right note back.",
+      "A journal app for your days, thoughts and memories. Write markdown entries, connect people and projects with mentions, and keep your journal in sync across devices.",
     lp_hero_cta: "Start for free",
 
     lp_connect_badge: "Connections",
@@ -46,21 +46,21 @@ export const dict: Module = {
     lp_discover_f3_desc:
       "Every person, project and topic carries real metrics: mentions, time invested and connections.",
     lp_discover_shot1_alt: "Interactive knowledge graph of linked notes",
-    lp_discover_shot1_caption: "Your second brain, visualized.",
+    lp_discover_shot1_caption: "Your knowledge, visualized.",
     lp_discover_shot2_alt: "Insights dashboard with note scores and forgotten gems",
     lp_discover_shot2_caption: "What matters resurfaces automatically.",
 
     lp_future_badge: "Get started",
-    lp_future_title: "Your second brain,",
+    lp_future_title: "Write what matters,",
     lp_future_subtitle: "without the friction.",
     lp_future_description:
-      "Free markdown note taking with native sync, backlinks and a knowledge graph that grows with you. No credit card required.",
+      "Markdown entries, native sync and connections that grow with you. No credit card required.",
 
     lp_faq_label: "FAQ",
     lp_faq_title: "Questions about Continuum",
     lp_faq_q1: "What is Continuum?",
     lp_faq_a1:
-      "Continuum is a second brain and note taking app. You write markdown notes, link them with @mentions, and Continuum builds a knowledge graph of your people, projects and ideas automatically.",
+      "Continuum is a personal journal app. Write in markdown, link notes with @mentions, and explore connections between people, projects and ideas.",
     lp_faq_q2: "Is Continuum a good Obsidian alternative?",
     lp_faq_a2:
       "Yes. Continuum keeps linked thinking and backlinks, but adds free native sync across devices, a mobile-first interface and a relevance score that resurfaces forgotten notes — with no plugins to configure.",
@@ -75,7 +75,7 @@ export const dict: Module = {
       "Yes. Continuum is an open-source project and the full code is public on GitHub, so anyone can audit how your notes are stored and processed.",
 
     lp_footer_tagline:
-      "A modern knowledge management platform to organize, connect and rediscover your ideas at the speed of thought.",
+      "Capture your days, connect your thoughts and revisit what matters.",
     lp_footer_product: "Product",
     lp_footer_legal: "Legal",
     lp_footer_contact: "Contact",
@@ -91,10 +91,10 @@ export const dict: Module = {
     lp_about_back_to_home: "← Back to home",
     lp_about_eyebrow: "About",
     lp_about_title: "About Continuum",
-    lp_about_subtitle: "Your second brain, without the friction.",
+    lp_about_subtitle: "Your thoughts, connected.",
     lp_about_section_1_title: "What is Continuum?",
     lp_about_section_1_body:
-      "Continuum is a modern knowledge management platform designed to help you capture, connect, and rediscover your ideas at the speed of thought. Notes link themselves through mentions and topics, building a living graph of everything you care about.",
+      "Continuum helps you record daily experiences, thoughts and memories. Notes connect through mentions of people, projects and topics, so you can revisit them over time.",
     lp_about_section_2_title: "Our philosophy",
     lp_about_section_2_body:
       "No folder mess, no rigid hierarchy — just pure flow. Your most relevant notes and entities resurface automatically based on how you actually use them, so your knowledge works for you.",
@@ -130,7 +130,7 @@ export const dict: Module = {
     lp_terms_last_updated: "Last updated: May 22, 2026",
     lp_terms_section_1_title: "1. Welcome to Continuum",
     lp_terms_section_1_body:
-      "Continuum is a personal knowledge app designed to help you capture, connect, and understand your notes, people, projects and ideas over time. By using Continuum, you agree to these Terms of Service.",
+      "Continuum is an app to record your days, thoughts and memories and connect your notes over time. By using Continuum, you agree to these Terms of Service.",
     lp_terms_section_2_title: "2. Your Content",
     lp_terms_section_2_body:
       "You own all the content you create in Continuum — your notes, entities, relationships and knowledge graph. We only store and process your data to provide the service, generate insights and keep everything working.",
@@ -142,24 +142,24 @@ export const dict: Module = {
       "We are constantly improving Continuum. We may add, modify or remove features. Significant changes will be communicated to you.",
     lp_terms_section_5_title: "5. Termination",
     lp_terms_section_5_body:
-      "You can stop using Continuum at any time. We may also suspend or terminate your access if you breach these terms.",
+      "You are free to leave Continuum at any time. You can export your data and permanently delete your account from Settings — your notes, files and entities are then removed from our servers. We may also suspend or terminate your access if you breach these terms.",
     lp_terms_contact: "If you have any questions about these Terms, feel free to contact us at",
   },
 
   es: {
-    lp_metaTitle: "Continuum — Segundo cerebro y app de notas con grafo de conocimiento",
+    lp_metaTitle: "Continuum — App de Diario Personal",
     lp_metaDescription:
-      "Continuum es una app de segundo cerebro para notas enlazadas: notas en markdown, @menciones, grafo de conocimiento automático, sincronización nativa gratis y recuperación inteligente. Una alternativa moderna a Obsidian.",
+      "Continuum es una app de diario personal para registrar tus días, pensamientos y recuerdos. Escribe en markdown, conecta personas y proyectos y revisita tu historia.",
 
     lp_nav_signIn: "Entrar con Google",
     lp_accountDeletedTitle: "Cuenta eliminada",
     lp_accountDeletedDescription: "Tu cuenta y sus datos se eliminaron permanentemente.",
 
     lp_hero_badge: "Continuum",
-    lp_hero_title: "Tu segundo cerebro,",
+    lp_hero_title: "Tu diario personal,",
     lp_hero_subtitle: "sin fricción.",
     lp_hero_description:
-      "Una app de notas hecha para el pensamiento enlazado: notas en markdown, grafo de conocimiento automático, sincronización nativa gratis entre dispositivos y recuperación inteligente que trae de vuelta la nota correcta.",
+      "Una app de diario para tus días, pensamientos y recuerdos. Escribe entradas en markdown, conecta personas y proyectos con menciones y sincroniza tu diario entre dispositivos.",
     lp_hero_cta: "Empezar gratis",
 
     lp_connect_badge: "Conexiones",
@@ -186,21 +186,21 @@ export const dict: Module = {
     lp_discover_f3_desc:
       "Cada persona, proyecto y tema tiene métricas reales: menciones, tiempo invertido y conexiones.",
     lp_discover_shot1_alt: "Grafo de conocimiento interactivo de notas enlazadas",
-    lp_discover_shot1_caption: "Tu segundo cerebro, visualizado.",
+    lp_discover_shot1_caption: "Tu conocimiento, visualizado.",
     lp_discover_shot2_alt: "Panel de insights con scores de notas y joyas olvidadas",
     lp_discover_shot2_caption: "Lo importante reaparece automáticamente.",
 
     lp_future_badge: "Empieza ahora",
-    lp_future_title: "Tu segundo cerebro,",
+    lp_future_title: "Escribe lo que importa,",
     lp_future_subtitle: "sin fricción.",
     lp_future_description:
-      "Notas markdown gratis con sincronización nativa, enlaces inversos y un grafo de conocimiento que crece contigo. Sin tarjeta de crédito.",
+      "Entradas en markdown, sincronización nativa y conexiones que crecen contigo. Sin tarjeta de crédito.",
 
     lp_faq_label: "Preguntas frecuentes",
     lp_faq_title: "Preguntas sobre Continuum",
     lp_faq_q1: "¿Qué es Continuum?",
     lp_faq_a1:
-      "Continuum es una app de notas y segundo cerebro. Escribes notas en markdown, las enlazas con @menciones y Continuum construye automáticamente un grafo de conocimiento con tus personas, proyectos e ideas.",
+      "Continuum es una app de diario personal. Registra tus días, pensamientos y recuerdos en markdown, enlaza entradas con @menciones y explora conexiones entre personas, proyectos e ideas.",
     lp_faq_q2: "¿Es una buena alternativa a Obsidian?",
     lp_faq_a2:
       "Sí. Continuum mantiene el pensamiento enlazado y los enlaces inversos, y añade sincronización nativa gratis, una interfaz mobile-first y un score que recupera notas olvidadas, sin plugins que configurar.",
@@ -215,7 +215,7 @@ export const dict: Module = {
       "Sí. Continuum es un proyecto de código abierto y todo el código está público en GitHub, así cualquiera puede auditar cómo se guardan y procesan tus notas.",
 
     lp_footer_tagline:
-      "Una plataforma moderna de gestión del conocimiento para organizar, conectar y redescubrir tus ideas a la velocidad del pensamiento.",
+      "Registra tus días, conecta tus ideas y vuelve a lo que importa.",
     lp_footer_product: "Producto",
     lp_footer_legal: "Legal",
     lp_footer_contact: "Contacto",
@@ -231,10 +231,10 @@ export const dict: Module = {
     lp_about_back_to_home: "← Volver al inicio",
     lp_about_eyebrow: "Acerca de",
     lp_about_title: "Acerca de Continuum",
-    lp_about_subtitle: "Tu segundo cerebro, sin fricción.",
+    lp_about_subtitle: "Tus ideas, conectadas.",
     lp_about_section_1_title: "¿Qué es Continuum?",
     lp_about_section_1_body:
-      "Continuum es una plataforma moderna de gestión del conocimiento diseñada para ayudarte a capturar, conectar y redescubrir tus ideas a la velocidad del pensamiento. Las notas se enlazan entre sí mediante menciones y temas, construyendo un grafo vivo de todo lo que te importa.",
+      "Continuum te ayuda a registrar experiencias cotidianas, pensamientos y recuerdos. Las entradas se conectan mediante menciones de personas, proyectos y temas, para revisitar tu historia a lo largo del tiempo.",
     lp_about_section_2_title: "Nuestra filosofía",
     lp_about_section_2_body:
       "Sin caos de carpetas ni jerarquías rígidas: solo flujo. Tus notas y entidades más relevantes resurgen automáticamente según cómo las usas realmente, para que tu conocimiento trabaje para ti.",
@@ -270,7 +270,7 @@ export const dict: Module = {
     lp_terms_last_updated: "Última actualización: 22 de mayo de 2026",
     lp_terms_section_1_title: "1. Bienvenido a Continuum",
     lp_terms_section_1_body:
-      "Continuum es una app personal de conocimiento diseñada para ayudarte a capturar, conectar y comprender tus notas, personas, proyectos e ideas con el tiempo. Al usar Continuum, aceptas estos Términos de servicio.",
+      "Continuum es una app para registrar tus días, pensamientos y recuerdos y conectar tus entradas a lo largo del tiempo. Al usar Continuum, aceptas estos Términos de servicio.",
     lp_terms_section_2_title: "2. Tu contenido",
     lp_terms_section_2_body:
       "Eres dueño de todo el contenido que creas en Continuum: tus notas, entidades, relaciones y grafo de conocimiento. Solo almacenamos y procesamos tus datos para proporcionar el servicio, generar insights y mantener todo funcionando.",
@@ -287,19 +287,19 @@ export const dict: Module = {
   },
 
   pt: {
-    lp_metaTitle: "Continuum — Segundo cérebro e app de notas com grafo de conhecimento",
+    lp_metaTitle: "Continuum — App de Diário Pessoal",
     lp_metaDescription:
-      "O Continuum é um app de segundo cérebro para notas conectadas: notas em markdown, @menções, grafo de conhecimento automático, sincronização nativa grátis e reaparecimento inteligente. Uma alternativa moderna ao Obsidian.",
+      "O Continuum é um app de diário pessoal para registrar seus dias, pensamentos e memórias. Escreva em markdown, conecte pessoas e projetos e revisite sua história.",
 
     lp_nav_signIn: "Entrar",
     lp_accountDeletedTitle: "Conta excluída",
     lp_accountDeletedDescription: "Sua conta e os dados foram excluídos permanentemente.",
 
     lp_hero_badge: "Continuum",
-    lp_hero_title: "Seu segundo cérebro,",
+    lp_hero_title: "Seu diário pessoal,",
     lp_hero_subtitle: "sem atrito.",
     lp_hero_description:
-      "Um app de notas feito para o pensamento conectado: notas em markdown, grafo de conhecimento automático, sincronização nativa grátis entre dispositivos e reaparecimento inteligente que traz a nota certa de volta.",
+      "Um app de diário para seus dias, pensamentos e memórias. Escreva registros em markdown, conecte pessoas e projetos com menções e sincronize seu diário entre dispositivos.",
     lp_hero_cta: "Começar grátis",
 
     lp_connect_badge: "Conexões",
@@ -326,21 +326,21 @@ export const dict: Module = {
     lp_discover_f3_desc:
       "Cada pessoa, projeto e tema tem métricas reais: menções, tempo investido e conexões.",
     lp_discover_shot1_alt: "Grafo de conhecimento interativo de notas conectadas",
-    lp_discover_shot1_caption: "Seu segundo cérebro, visualizado.",
+    lp_discover_shot1_caption: "Seu conhecimento, visualizado.",
     lp_discover_shot2_alt: "Painel de insights com scores de notas e joias esquecidas",
     lp_discover_shot2_caption: "O que importa reaparece automaticamente.",
 
     lp_future_badge: "Comece agora",
-    lp_future_title: "Seu segundo cérebro,",
+    lp_future_title: "Escreva o que importa,",
     lp_future_subtitle: "sem atrito.",
     lp_future_description:
-      "Notas em markdown grátis com sincronização nativa, backlinks e um grafo de conhecimento que cresce com você. Sem cartão de crédito.",
+      "Registros em markdown, sincronização nativa e conexões que crescem com você. Sem cartão de crédito.",
 
     lp_faq_label: "Perguntas frequentes",
     lp_faq_title: "Dúvidas sobre o Continuum",
     lp_faq_q1: "O que é o Continuum?",
     lp_faq_a1:
-      "O Continuum é um app de notas e segundo cérebro. Você escreve notas em markdown, conecta com @menções e o Continuum monta automaticamente um grafo de conhecimento com pessoas, projetos e ideias.",
+      "O Continuum é um app de diário pessoal. Registre seus dias, pensamentos e memórias em markdown, conecte registros com @menções e explore relações entre pessoas, projetos e ideias.",
     lp_faq_q2: "O Continuum é uma boa alternativa ao Obsidian?",
     lp_faq_a2:
       "Sim. Ele mantém o pensamento conectado e os backlinks, e adiciona sincronização nativa grátis, interface mobile-first e um score que faz notas esquecidas reaparecerem — sem plugins para configurar.",
@@ -355,7 +355,7 @@ export const dict: Module = {
       "Sim. O Continuum é um projeto de código aberto e todo o código está público no GitHub, então qualquer pessoa pode auditar como suas notas são guardadas e processadas.",
 
     lp_footer_tagline:
-      "Uma plataforma moderna de gestão de conhecimento para organizar, conectar e redescobrir suas ideias na velocidade do pensamento.",
+      "Registre seus dias, conecte suas ideias e revisite o que importa.",
     lp_footer_product: "Produto",
     lp_footer_legal: "Legal",
     lp_footer_contact: "Contato",
@@ -371,10 +371,10 @@ export const dict: Module = {
     lp_about_back_to_home: "← Voltar ao início",
     lp_about_eyebrow: "Sobre",
     lp_about_title: "Sobre o Continuum",
-    lp_about_subtitle: "Seu segundo cérebro, sem atrito.",
+    lp_about_subtitle: "Suas ideias, conectadas.",
     lp_about_section_1_title: "O que é o Continuum?",
     lp_about_section_1_body:
-      "O Continuum é uma plataforma moderna de gestão de conhecimento criada para ajudar você a capturar, conectar e redescobrir ideias na velocidade do pensamento. As notas se conectam entre si por meio de menções e tópicos, formando um grafo vivo de tudo o que importa para você.",
+      "O Continuum ajuda você a registrar experiências do dia a dia, pensamentos e memórias. Os registros se conectam por menções a pessoas, projetos e temas, ajudando você a revisitar sua história ao longo do tempo.",
     lp_about_section_2_title: "Nossa filosofia",
     lp_about_section_2_body:
       "Sem bagunça de pastas nem hierarquia rígida: só fluxo. As notas e entidades mais relevantes voltam automaticamente com base no jeito real de usar o app, para o seu conhecimento trabalhar por você.",
@@ -410,7 +410,7 @@ export const dict: Module = {
     lp_terms_last_updated: "Última atualização: 22 de maio de 2026",
     lp_terms_section_1_title: "1. Bem-vindo ao Continuum",
     lp_terms_section_1_body:
-      "O Continuum é um app pessoal de conhecimento projetado para ajudá-lo a capturar, conectar e entender suas notas, pessoas, projetos e ideias ao longo do tempo. Ao usar o Continuum, você concorda com estes Termos de serviço.",
+      "O Continuum é um app para registrar seus dias, pensamentos e memórias e conectar seus registros ao longo do tempo. Ao usar o Continuum, você concorda com estes Termos de serviço.",
     lp_terms_section_2_title: "2. Seu conteúdo",
     lp_terms_section_2_body:
       "Você é dono de todo o conteúdo que cria no Continuum — suas notas, entidades, relacionamentos e grafo de conhecimento. Só armazenamos e processamos seus dados para fornecer o serviço, gerar insights e manter tudo funcionando.",
@@ -427,19 +427,19 @@ export const dict: Module = {
   },
 
   fr: {
-    lp_metaTitle: "Continuum — Second cerveau et app de notes avec graphe de connaissances",
+    lp_metaTitle: "Continuum — Application de Journal Personnel",
     lp_metaDescription:
-      "Continuum est une app de second cerveau pour des notes liées : notes markdown, @mentions, graphe de connaissances automatique, synchronisation native gratuite et remontée intelligente. Une alternative moderne à Obsidian.",
+      "Continuum est une application de journal personnel pour vos journées, pensées et souvenirs. Écrivez en markdown, reliez vos entrées et revisitez votre histoire.",
 
     lp_nav_signIn: "Se connecter avec Google",
     lp_accountDeletedTitle: "Compte supprimé",
     lp_accountDeletedDescription: "Votre compte et ses données ont été définitivement supprimés.",
 
     lp_hero_badge: "Continuum",
-    lp_hero_title: "Votre second cerveau,",
+    lp_hero_title: "Votre journal personnel,",
     lp_hero_subtitle: "sans friction.",
     lp_hero_description:
-      "Une app de notes pensée pour la pensée liée : notes markdown, graphe de connaissances automatique, synchronisation native gratuite sur tous vos appareils et remontée intelligente de la bonne note.",
+      "Une application de journal pour vos journées, pensées et souvenirs. Écrivez en markdown, reliez contacts et projets avec des mentions et synchronisez votre journal entre appareils.",
     lp_hero_cta: "Commencer gratuitement",
 
     lp_connect_badge: "Connexions",
@@ -466,21 +466,21 @@ export const dict: Module = {
     lp_discover_f3_desc:
       "Chaque personne, projet et sujet porte de vraies métriques : mentions, temps investi et connexions.",
     lp_discover_shot1_alt: "Graphe de connaissances interactif de notes liées",
-    lp_discover_shot1_caption: "Votre second cerveau, visualisé.",
+    lp_discover_shot1_caption: "Votre savoir, visualisé.",
     lp_discover_shot2_alt: "Tableau d'analyses avec scores et pépites oubliées",
     lp_discover_shot2_caption: "L'essentiel remonte automatiquement.",
 
     lp_future_badge: "Commencer",
-    lp_future_title: "Votre second cerveau,",
+    lp_future_title: "Écrivez ce qui compte,",
     lp_future_subtitle: "sans friction.",
     lp_future_description:
-      "Des notes markdown gratuites avec synchronisation native, backlinks et un graphe de connaissances qui grandit avec vous. Sans carte bancaire.",
+      "Des entrées markdown, une synchronisation native et des liens qui grandissent avec vous. Sans carte bancaire.",
 
     lp_faq_label: "FAQ",
     lp_faq_title: "Questions sur Continuum",
     lp_faq_q1: "Qu'est-ce que Continuum ?",
     lp_faq_a1:
-      "Continuum est une app de notes et de second cerveau. Vous écrivez des notes markdown, vous les liez avec des @mentions et Continuum construit automatiquement un graphe de connaissances.",
+      "Continuum est une application de journal personnel. Consignez vos journées, pensées et souvenirs en markdown, reliez vos entrées avec des @mentions et explorez les liens entre contacts, projets et idées.",
     lp_faq_q2: "Est-ce une bonne alternative à Obsidian ?",
     lp_faq_a2:
       "Oui. Continuum garde la pensée liée et les backlinks, et ajoute une synchronisation native gratuite, une interface mobile-first et un score qui fait remonter les notes oubliées, sans plugins.",
@@ -495,7 +495,7 @@ export const dict: Module = {
       "Oui. Continuum est un projet open source et tout le code est public sur GitHub : chacun peut vérifier comment vos notes sont stockées et traitées.",
 
     lp_footer_tagline:
-      "Une plateforme moderne de gestion des connaissances pour organiser, connecter et redécouvrir vos idées à la vitesse de la pensée.",
+      "Consignez vos journées, reliez vos pensées et revisitez ce qui compte.",
     lp_footer_product: "Produit",
     lp_footer_legal: "Légal",
     lp_footer_contact: "Contact",
@@ -511,10 +511,10 @@ export const dict: Module = {
     lp_about_back_to_home: "← Retour à l'accueil",
     lp_about_eyebrow: "À propos",
     lp_about_title: "À propos de Continuum",
-    lp_about_subtitle: "Votre second cerveau, sans friction.",
+    lp_about_subtitle: "Vos pensées, reliées.",
     lp_about_section_1_title: "Qu'est-ce que Continuum ?",
     lp_about_section_1_body:
-      "Continuum est une plateforme moderne de gestion des connaissances conçue pour vous aider à capturer, relier et redécouvrir vos idées à la vitesse de la pensée. Les notes se lient entre elles grâce aux mentions et aux sujets, pour construire un graphe vivant de tout ce qui vous importe.",
+      "Continuum vous aide à consigner vos expériences quotidiennes, pensées et souvenirs. Les entrées se relient par des mentions de contacts, projets et sujets, pour revisiter votre histoire au fil du temps.",
     lp_about_section_2_title: "Notre philosophie",
     lp_about_section_2_body:
       "Pas de désordre de dossiers ni d'hiérarchie rigide : juste du flux. Vos notes et entités les plus pertinentes remontent automatiquement selon la façon dont vous les utilisez réellement, pour que votre connaissance travaille pour vous.",
@@ -550,7 +550,7 @@ export const dict: Module = {
     lp_terms_last_updated: "Dernière mise à jour : 22 mai 2026",
     lp_terms_section_1_title: "1. Bienvenue sur Continuum",
     lp_terms_section_1_body:
-      "Continuum est une application personnelle de connaissance conçue pour vous aider à capturer, relier et comprendre vos notes, personnes, projets et idées au fil du temps. En utilisant Continuum, vous acceptez ces Conditions d'utilisation.",
+      "Continuum est une application pour consigner vos journées, pensées et souvenirs et relier vos entrées au fil du temps. En utilisant Continuum, vous acceptez ces Conditions d'utilisation.",
     lp_terms_section_2_title: "2. Votre contenu",
     lp_terms_section_2_body:
       "Vous êtes propriétaire de tout le contenu que vous créez dans Continuum — vos notes, entités, relations et graphe de connaissances. Nous stockons et traitons vos données uniquement pour fournir le service, générer des insights et garder tout fonctionnel.",

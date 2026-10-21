@@ -5,6 +5,7 @@ import { ArrowUpRight, Calendar, Link2, Network, StickyNote, X, Tag } from "@/li
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ExpandableEntityDescription } from "@/components/ExpandableEntityDescription";
 import SmoothDrawer from "@/components/ui/smooth-drawer";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -318,7 +319,7 @@ export const SideInspector = memo(function SideInspector({ isOpen, entity, onClo
                   whileHover={{ scale: 1.08 }}
                   whileTap={{ scale: 0.96 }}
                   onClick={onClose}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   aria-label={t("ent_close")}
                 >
                   <X className="h-3.5 w-3.5" />
@@ -330,7 +331,7 @@ export const SideInspector = memo(function SideInspector({ isOpen, entity, onClo
               {loading ? (
                 <div className="space-y-3">
                   {[...Array(3)].map((_, index) => (
-                    <div key={index} className="h-20 animate-pulse rounded-sm bg-muted/50" />
+                    <div key={index} className="h-20 animate-pulse rounded-xl bg-muted/50" />
                   ))}
                 </div>
               ) : (
@@ -341,14 +342,14 @@ export const SideInspector = memo(function SideInspector({ isOpen, entity, onClo
                   className="space-y-3"
                 >
                   {error && (
-                    <div className="rounded-md bg-muted/60 p-4">
+                    <div className="rounded-2xl bg-card/40 p-4">
                       <p className="text-xs text-muted-foreground">{error}</p>
                     </div>
                   )}
 
                   {isNote ? (
                     <>
-                      <div className="rounded-md bg-muted/60 p-4">
+                      <div className="rounded-2xl bg-card/40 p-4">
                         <h3 className="mb-3 label-caps text-muted-foreground">{t("ent_summary")}</h3>
                         <div className="space-y-3">
                           <p className="text-xs leading-relaxed text-muted-foreground">{notePreview}</p>
@@ -417,7 +418,7 @@ export const SideInspector = memo(function SideInspector({ isOpen, entity, onClo
                     </>
                   ) : (
                     <>
-                      <div className="rounded-md bg-muted/60 p-4">
+                      <div className="rounded-2xl bg-card/40 p-4">
                         <h3 className="mb-3 label-caps text-muted-foreground">{t("ent_metadata")}</h3>
                         <div className="space-y-2 text-[10px] font-mono text-muted-foreground">
                           <div className="flex items-center justify-between">
@@ -444,11 +445,15 @@ export const SideInspector = memo(function SideInspector({ isOpen, entity, onClo
                         </div>
                       </div>
 
-                      <div className="rounded-md bg-muted/60 p-4">
+                      <div className="rounded-2xl bg-card/40 p-4">
                         <h3 className="mb-3 label-caps text-muted-foreground">{t("ent_details")}</h3>
                         <div className="space-y-3">
                           {displayEntity.description ? (
-                            <p className="text-xs leading-relaxed text-muted-foreground">{displayEntity.description}</p>
+                            <ExpandableEntityDescription
+                              key={displayEntity.id}
+                              description={displayEntity.description}
+                              className="text-xs leading-relaxed text-muted-foreground"
+                            />
                           ) : (
                             <p className="text-xs text-muted-foreground">{t("ent_no_description_added")}</p>
                           )}
@@ -466,7 +471,7 @@ export const SideInspector = memo(function SideInspector({ isOpen, entity, onClo
                       </div>
 
                       {displayEntity.type === "ACTIVITY" && (
-                        <div className="rounded-md bg-muted/60 p-4">
+                        <div className="rounded-2xl bg-card/40 p-4">
                           <h3 className="mb-3 label-caps text-muted-foreground">{t("ent_activity_metrics")}</h3>
                           <div className="grid grid-cols-2 gap-3 text-center text-[10px] font-mono">
                             <div>
@@ -482,7 +487,7 @@ export const SideInspector = memo(function SideInspector({ isOpen, entity, onClo
                       )}
 
 
-                      <div className="rounded-md bg-muted/60 p-4">
+                      <div className="rounded-2xl bg-card/40 p-4">
                         <h3 className="mb-3 label-caps text-muted-foreground">{t("ent_connected_notes")}</h3>
                         <div className="space-y-2">
                           {relatedNotes.length > 0 ? (
@@ -493,7 +498,7 @@ export const SideInspector = memo(function SideInspector({ isOpen, entity, onClo
                                   navigate(`/notes/${note.id}`);
                                   onClose();
                                 }}
-                                className="flex w-full items-start gap-2 rounded-sm border border-border/10 px-2.5 py-2 text-left transition-colors hover:bg-muted"
+                                className="flex w-full items-start gap-2 rounded-xl border border-border/10 px-2.5 py-2 text-left transition-colors hover:bg-muted"
                               >
                                 <StickyNote className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
                                 <div className="min-w-0 flex-1">
@@ -508,7 +513,7 @@ export const SideInspector = memo(function SideInspector({ isOpen, entity, onClo
                         </div>
                       </div>
 
-                      <div className="rounded-md bg-muted/60 p-4">
+                      <div className="rounded-2xl bg-card/40 p-4">
                         <h3 className="mb-3 label-caps text-muted-foreground">{t("ent_related_entities")}</h3>
                         <div className="space-y-2">
                           {relatedEntities.length > 0 ? (
@@ -516,7 +521,7 @@ export const SideInspector = memo(function SideInspector({ isOpen, entity, onClo
                               <button
                                 key={relatedEntity.id}
                                 onClick={() => openInspector(relatedEntity)}
-                                className="flex w-full items-center justify-between rounded-sm border border-border/10 px-2.5 py-2 text-left transition-colors hover:bg-muted"
+                                className="flex w-full items-center justify-between rounded-xl border border-border/10 px-2.5 py-2 text-left transition-colors hover:bg-muted"
                               >
                                 <div className="min-w-0">
                                   <p className="truncate text-xs text-foreground">{relatedEntity.title}</p>
@@ -557,7 +562,7 @@ export const SideInspector = memo(function SideInspector({ isOpen, entity, onClo
 
   if (drawerMode) {
     return (
-      <SmoothDrawer key={entity?.id} expandable open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }} hideHeader title={entity?.title ?? ""}>
+      <SmoothDrawer key={entity?.id} expandable dragFromContent open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }} hideHeader title={entity?.title ?? ""}>
         {panel}
       </SmoothDrawer>
     );

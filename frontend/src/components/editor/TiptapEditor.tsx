@@ -34,6 +34,7 @@ import {
 } from "@/lib/heroicons";
 import { entitiesApi, notesApi, vaultApi } from "@/lib/api";
 import type { Entity } from "@/types";
+import { getMentionClickTarget } from "@/lib/tiptap-content";
 import { useToast } from "@/hooks/use-toast";
 import { MentionList, type MentionListRef, type MentionItem } from "./MentionList";
 import { SlashCommands } from "./SlashCommands";
@@ -78,6 +79,22 @@ const isSafeEditorUrl = (href: string) => {
     return false;
   }
 };
+
+const EntityMention = Mention.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      type: {
+        default: "ENTITY",
+        parseHTML: (element) => {
+          const type = element.getAttribute("data-type") ?? element.getAttribute("data-mention-type");
+          return type?.toUpperCase() === "NOTE" ? "NOTE" : "ENTITY";
+        },
+        renderHTML: (attributes) => ({ "data-type": attributes.type }),
+      },
+    };
+  },
+});
 
 const NoteMention = Mention.extend({
   name: "noteMention",
@@ -219,9 +236,22 @@ const buildSuggestion = (variant: "entity" | "note", currentNoteId?: string) => 
   render: () => {
     let component: ReactRenderer<MentionListRef> | null = null;
     let popup: TippyInstance | null = null;
+    let anchorPosition: number | null = null;
+
+    const getMentionAnchorRect = (editor: Editor): DOMRect | null => {
+      if (anchorPosition === null) return null;
+      const coords = editor.view.coordsAtPos(anchorPosition);
+      return new DOMRect(
+        coords.left,
+        coords.top,
+        coords.right - coords.left,
+        coords.bottom - coords.top,
+      );
+    };
 
     const teardown = () => {
       mentionSuggestionActive = false;
+      anchorPosition = null;
       if (popup) {
         activeMentionPopups.delete(popup);
         try { popup.destroy(); } catch { /* already destroyed */ }
@@ -239,6 +269,7 @@ const buildSuggestion = (variant: "entity" | "note", currentNoteId?: string) => 
         destroyAllMentionPopups();
         teardown();
         mentionSuggestionActive = true;
+        anchorPosition = props.range.from;
         component = new ReactRenderer(MentionList, {
           props: { ...props, query: props.query, variant },
           editor: props.editor,
@@ -247,8 +278,10 @@ const buildSuggestion = (variant: "entity" | "note", currentNoteId?: string) => 
           teardown();
           return;
         }
+        const clientRect = props.clientRect;
+        const getAnchorRect = () => getMentionAnchorRect(props.editor) ?? clientRect();
         popup = tippy("body", {
-          getReferenceClientRect: props.clientRect as () => DOMRect,
+          getReferenceClientRect: getAnchorRect,
           appendTo: () => document.body,
           content: component.element,
           showOnCreate: true,
@@ -264,8 +297,8 @@ const buildSuggestion = (variant: "entity" | "note", currentNoteId?: string) => 
           popperOptions: {
             strategy: "fixed",
             modifiers: [
-              { name: "flip", options: { fallbackPlacements: ["top-start", "bottom-start"], padding: 8 } },
-              { name: "preventOverflow", options: { padding: 8 } },
+              { name: "flip", enabled: false },
+              { name: "preventOverflow", enabled: false },
             ],
           },
           onHidden: () => teardown(),
@@ -290,7 +323,13 @@ const buildSuggestion = (variant: "entity" | "note", currentNoteId?: string) => 
       },
       onUpdate(props: SuggestionProps<MentionItem>) {
         component?.updateProps({ ...props, query: props.query, variant });
-        if (props.clientRect) popup?.setProps({ getReferenceClientRect: props.clientRect as () => DOMRect });
+        const clientRect = props.clientRect;
+        if (clientRect) {
+          popup?.setProps({
+            getReferenceClientRect: () =>
+              getMentionAnchorRect(props.editor) ?? clientRect(),
+          });
+        }
       },
       onKeyDown(props: SuggestionKeyDownProps) {
         if (props.event.key === "Escape") { teardown(); return true; }
@@ -317,14 +356,14 @@ interface Props {
   editable?: boolean;
   className?: string;
   currentNoteId?: string;
-  onNoteLinkClick?: (noteId: string) => void;
+  onMentionClick?: (id: string, type: "note" | "entity") => void;
   onSave?: () => void;
   foldedHeadings?: number[];
   onFoldedHeadingsChange?: (indices: number[]) => void;
 }
 
 export const TiptapEditor = forwardRef<TiptapEditorHandle, Props>(
-  ({ content, onChange, editable = true, className, currentNoteId, onNoteLinkClick, onSave, foldedHeadings, onFoldedHeadingsChange }, ref) => {
+  ({ content, onChange, editable = true, className, currentNoteId, onMentionClick, onSave, foldedHeadings, onFoldedHeadingsChange }, ref) => {
     const onFoldChangeRef = useRef(onFoldedHeadingsChange);
     onFoldChangeRef.current = onFoldedHeadingsChange;
     const onChangeRef = useRef(onChange);
@@ -397,7 +436,7 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, Props>(
         TableCell,
         TableHeader,
         CodeBlockLowlight.configure({ lowlight }),
-        Mention.configure({
+        EntityMention.configure({
           HTMLAttributes: { class: "continuum-entity-mention" },
           renderHTML: ({ node, HTMLAttributes }: any) => [
             "span",
@@ -405,9 +444,9 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, Props>(
               ...HTMLAttributes,
               "data-id": node.attrs.id,
               "data-label": node.attrs.label,
-              "data-mention-type": "entity",
+              "data-mention-type": node.attrs.type === "NOTE" ? "note" : "entity",
             },
-            `@${node.attrs.label || node.attrs.id}`,
+            `${node.attrs.type === "NOTE" ? "#" : "@"}${node.attrs.label || node.attrs.id}`,
           ],
           suggestion: buildSuggestion("entity") as any,
         }),
@@ -432,6 +471,9 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, Props>(
       editorProps: {
         attributes: {
           class: `continuum-editor max-w-none focus:outline-none min-h-[60vh] ${editable ? "" : "is-readonly"} ${className || ""}`,
+          spellcheck: "true",
+          autocorrect: editable ? "on" : "off",
+          autocapitalize: "sentences",
         },
         handlePaste: (view, event) => {
           const items = event.clipboardData?.items;
@@ -650,6 +692,13 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, Props>(
       return () => window.removeEventListener("focus", onFocus);
     }, []);
 
+    const restoreEditorFocus = (target: EventTarget | null, clientX: number, clientY: number) => {
+      if (!editable || editor.view.hasFocus() || !(target instanceof Element)) return;
+      if (!target.closest(".ProseMirror") || getMentionClickTarget(target) || target.closest("a")) return;
+      const position = editor.view.posAtCoords({ left: clientX, top: clientY });
+      if (position) editor.chain().focus(position.pos).run();
+    };
+
     return (
       <>
         <input
@@ -743,24 +792,39 @@ export const TiptapEditor = forwardRef<TiptapEditorHandle, Props>(
           onDragLeave={handleDragLeave}
           onDragOver={handleDragOver}
           onDrop={handleDrop}
+          onPointerDownCapture={(e) => {
+            restoreEditorFocus(e.target, e.clientX, e.clientY);
+          }}
+          onTouchStartCapture={(e) => {
+            const touch = e.touches[0];
+            if (touch) restoreEditorFocus(e.target, touch.clientX, touch.clientY);
+          }}
+          onClickCapture={(e) => {
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+
+            const target = e.target;
+            if (target instanceof Element) {
+              const mention = getMentionClickTarget(target);
+              if (mention) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (onMentionClick) {
+                  onMentionClick(mention.id, mention.type);
+                } else if (mention.type === "note") {
+                  navigate(`/notes/${mention.id}`);
+                } else {
+                  navigate(`/entities/${mention.id}`);
+                }
+                return;
+              }
+
+              restoreEditorFocus(target, e.clientX, e.clientY);
+            }
+          }}
           onClick={(e) => {
             if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
 
             const target = e.target as HTMLElement;
-
-            const mentionTarget = target.closest<HTMLElement>(".continuum-entity-mention, .continuum-note-mention");
-            if (mentionTarget) {
-              const mentionId = mentionTarget.getAttribute("data-id");
-              if (!mentionId) return;
-              e.preventDefault();
-              if (mentionTarget.classList.contains("continuum-note-mention")) {
-                onNoteLinkClick?.(mentionId);
-              } else {
-                navigate(`/entities/${mentionId}`);
-              }
-              return;
-            }
-
             const linkTarget = target.closest<HTMLAnchorElement>("a");
             if (linkTarget) {
               const href = linkTarget.getAttribute("href");

@@ -21,6 +21,7 @@ import { ListRowContent } from "@/components/ui/list-row-content";
 import { EntityTypeIcon } from "@/components/ui/entity-type-icon";
 import { StickyNote } from "@/lib/heroicons";
 import { ScoreEvolutionSection } from "@/components/insights/ScoreEvolutionSection";
+import { InsightBadge } from "@/components/InsightSignal";
 
 import { cn } from "@/lib/utils";
 import { insightsApi } from "@/lib/api";
@@ -50,6 +51,9 @@ interface EntityInsight {
   hoursTracked: number;
   daysSinceLastMention: number;
 }
+
+const EMPTY_NOTE_INSIGHTS: NoteInsight[] = [];
+const EMPTY_ENTITY_INSIGHTS: EntityInsight[] = [];
 
 type InsightCategory = "hotNotes" | "hotEntities" | "worthRevisiting" | "forgottenGems";
 type View = "all" | InsightCategory;
@@ -107,31 +111,12 @@ const formatHours = (h: number) => {
   return `${h.toFixed(h < 10 ? 1 : 0)}h`;
 };
 
-const formatDays = (d: number, t: (key: string, vars?: Record<string, any>) => string) => {
+const formatDays = (d: number, t: (key: string, vars?: Record<string, number>) => string) => {
   if (d <= 0) return t("ins_today");
   if (d === 1) return t("ins_days_ago_1");
   if (d < 30) return t("ins_days_ago_n", { count: d });
   if (d < 365) return t("ins_months_ago", { count: Math.floor(d / 30) });
   return t("ins_years_ago", { count: Math.floor(d / 365) });
-};
-
-const BADGE_KEY_MAP: Record<string, string> = {
-  "hot right now": "ins_badge_hot",
-  "worth revisiting": "ins_badge_worth_revisiting",
-  "forgotten gem": "ins_badge_forgotten_gem",
-  "key entity": "ins_badge_key_entity",
-};
-
-const translateBadge = (badge: string, t: (key: string, vars?: Record<string, any>) => string) => {
-  const key = BADGE_KEY_MAP[badge?.toLowerCase()?.trim() || ""];
-  return key ? t(key) : badge;
-};
-
-const badgeStyle = (badge: string) => {
-  const b = badge?.toLowerCase() || "";
-  if (b.includes("hot")) return "bg-foreground/[0.06] text-muted-foreground border-border/20";
-  if (b.includes("forgotten") || b.includes("gem")) return "bg-foreground/[0.04] text-muted-foreground border-border/10";
-  return "bg-transparent text-muted-foreground border-border/10";
 };
 
 function StatChip({ children }: { children: ReactNode }) {
@@ -184,10 +169,10 @@ function NavItem({ label, count, active, onClick }: NavItemProps) {
 function InsightRow({ item }: { item: InsightItem }) {
   const { t } = useLanguage();
   return (
-    <li>
+    <li className="flex items-center gap-2">
       <button
         onClick={item.onOpen}
-        className="group relative flex w-full items-center gap-4 py-4 text-left transition-colors hover:bg-foreground/[0.02]"
+        className="group relative flex min-w-0 flex-1 items-center gap-4 py-4 text-left transition-colors hover:bg-foreground/[0.02]"
       >
         <ListRowContent
           icon={
@@ -220,7 +205,10 @@ function InsightRow({ item }: { item: InsightItem }) {
           }
         />
       </button>
-
+      <InsightBadge
+        badge={item.badge}
+        category={item.category === "hotNotes" || item.category === "hotEntities" ? "hot" : "forgotten"}
+      />
     </li>
   );
 }
@@ -258,10 +246,10 @@ export default function Insights() {
 
   const loading = insightsQuery.loading;
   const refreshing = insightsQuery.refreshing;
-  const hotNotes = insightsQuery.data?.hotNotes ?? [];
-  const forgottenNotes = insightsQuery.data?.forgottenNotes ?? [];
-  const hotEntities = insightsQuery.data?.hotEntities ?? [];
-  const forgottenEntities = insightsQuery.data?.forgottenEntities ?? [];
+  const hotNotes = insightsQuery.data?.hotNotes ?? EMPTY_NOTE_INSIGHTS;
+  const forgottenNotes = insightsQuery.data?.forgottenNotes ?? EMPTY_NOTE_INSIGHTS;
+  const hotEntities = insightsQuery.data?.hotEntities ?? EMPTY_ENTITY_INSIGHTS;
+  const forgottenEntities = insightsQuery.data?.forgottenEntities ?? EMPTY_ENTITY_INSIGHTS;
   
   const [view, setView] = useState<View>("all");
   const [search, setSearch] = useState("");
@@ -355,7 +343,7 @@ export default function Insights() {
     });
 
     return items.sort((a, b) => b.normalizedScore - a.normalizedScore);
-  }, [hotNotes, hotEntities, forgottenNotes, forgottenEntities, navigate]);
+  }, [hotNotes, hotEntities, forgottenNotes, forgottenEntities, navigate, t]);
 
   const filteredInsights = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -408,7 +396,7 @@ export default function Insights() {
           </SheetContent>
         </Sheet>
 
-        <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-5 lg:flex-row lg:gap-16 lg:px-12 lg:py-16">
+        <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 pt-[14px] pb-5 lg:flex-row lg:gap-16 lg:px-12 lg:py-16">
           {/* Sidebar Desktop */}
           <aside className="hidden lg:sticky lg:top-16 lg:block lg:w-52 lg:shrink-0 lg:self-start">
             {SidebarContent}

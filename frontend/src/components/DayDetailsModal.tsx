@@ -61,18 +61,18 @@ export function DayDetailsModal({ dayData, isOpen, onClose }: DayDetailsModalPro
 
         <div className="space-y-6">
           {/* Summary */}
-          <div className="bg-zinc-50 dark:bg-zinc-800 rounded-lg p-4">
+          <div className="bg-card rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-semibold text-lg text-foreground">
                   {t('tm_total_time_colon', { time: formatDuration(dayData.totalSeconds) })}
                 </h3>
-                <p className="text-sm text-zinc-500">
+                <p className="text-sm text-muted-foreground">
                   {t('tm_time_entry_count', { count: dayData.entries.length, word: dayData.entries.length === 1 ? t('tm_entry_singular') : t('tm_entry_plural') })}
                 </p>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-zinc-500">
+                <div className="text-2xl font-bold text-muted-foreground">
                   {totalHours > 0 ? `${totalHours}:${totalMinutes.toString().padStart(2, '0')}` : `${totalMinutes}m`}
                 </div>
               </div>
@@ -85,7 +85,7 @@ export function DayDetailsModal({ dayData, isOpen, onClose }: DayDetailsModalPro
               {dayData.entries.map((entry) => (
                 <div
                   key={entry.id}
-                  className="border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 bg-foreground dark:bg-zinc-800"
+                  className="border border-border/10 rounded-lg p-4 bg-foreground"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -93,13 +93,13 @@ export function DayDetailsModal({ dayData, isOpen, onClose }: DayDetailsModalPro
                         <Badge variant="secondary">
                           {entry.entityTitle || t('tm_entity_fallback', { id: entry.entityId })}
                         </Badge>
-                        <span className="text-sm font-medium text-zinc-500">
+                        <span className="text-sm font-medium text-muted-foreground">
                           {formatDuration(entry.durationSeconds)}
                         </span>
                       </div>
 
                       {entry.note && (
-                        <div className="flex items-start gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+                        <div className="flex items-start gap-2 text-sm text-muted-foreground dark:text-muted-foreground">
                           <FileText className="w-4 h-4 mt-0.5 flex-shrink-0" />
                           <p className="line-clamp-2">{entry.note}</p>
                         </div>
@@ -112,7 +112,7 @@ export function DayDetailsModal({ dayData, isOpen, onClose }: DayDetailsModalPro
           </ScrollArea>
 
           {dayData.entries.length === 0 && (
-            <div className="text-center py-8 text-zinc-500">
+            <div className="text-center py-8 text-muted-foreground">
               <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p>{t('tm_no_entries_for_day')}</p>
             </div>

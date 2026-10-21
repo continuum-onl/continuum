@@ -1,6 +1,6 @@
 import { Component, useEffect, useImperativeHandle, useMemo, useRef, useState, forwardRef, type ReactNode } from 'react';
-import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
-import { AdaptiveDpr, AdaptiveEvents, Html, OrbitControls } from '@react-three/drei';
+import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
+import { Html, OrbitControls } from '@react-three/drei';
 import { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import { createBrainScaffold, layoutBrainNodes, scaffoldBuffers, type BrainLink, type BrainNode, type Point3 } from '@/lib/brain-layout';
@@ -16,6 +16,8 @@ interface Props {
   inside: boolean;
   theme: string;
   unavailableText: string;
+  scaffoldCount?: number;
+  backgroundColor?: string;
   onSelect: (node: BrainNode) => void;
   onOpen: (node: BrainNode) => void;
   onClear: () => void;
@@ -25,11 +27,12 @@ interface Palette { node: string; muted: string; background: string }
 // 3/4 lateral view: the angle where the brain is most recognisable.
 const VIEW_DIRECTION = new THREE.Vector3(0.82, 0.14, 0.56).normalize();
 const VIEW_TARGET = new THREE.Vector3(0, 0, 0);
+const NODE_APPEARANCE = { widthSegments: 24, heightSegments: 16, pulseAmplitude: 0.035, pulsePeriod: 4 };
 
 // The brain outline (a real cortex surface resampled in brain-layout.ts): one Points draw call + one LineSegments draw call, built
 // once and cached in the layout module (no per-instance matrices, no O(n^2) work).
-function Scaffold({ palette, inside }: { palette: Palette; inside: boolean }) {
-  const { points, lines } = useMemo(() => scaffoldBuffers(createBrainScaffold()), []);
+function Scaffold({ palette, inside, count }: { palette: Palette; inside: boolean; count: number }) {
+  const { points, lines } = useMemo(() => scaffoldBuffers(createBrainScaffold(count)), [count]);
   return <group>
     <points raycast={() => null} frustumCulled={false}>
       <bufferGeometry><bufferAttribute attach="attributes-position" args={[points, 3]} /></bufferGeometry>
@@ -47,6 +50,35 @@ function Network({ positions, palette, ...props }: Props & { positions: Map<stri
   const invalidate = useThree(state => state.invalidate);
   const [hovered, setHovered] = useState<string | null>(null);
   const hoveredRef = useRef<string | null>(null);
+  const pulse = useMemo(() => ({ time: { value: 0 }, amplitude: { value: 0 } }), []);
+  useEffect(() => {
+    const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => {
+      pulse.amplitude.value = preference.matches ? 0 : NODE_APPEARANCE.pulseAmplitude;
+      invalidate();
+    };
+    update();
+    preference.addEventListener('change', update);
+    return () => preference.removeEventListener('change', update);
+  }, [pulse, invalidate]);
+  useFrame((_, delta) => {
+    if (!pulse.amplitude.value) return;
+    pulse.time.value += Math.min(delta, 0.05);
+    invalidate();
+  });
+  // Animate on the GPU: no per-frame instance rebuilds or React state updates.
+  const animateMaterial = (shader: THREE.WebGLProgramParametersWithUniforms) => {
+    shader.uniforms.uNodeTime = pulse.time;
+    shader.uniforms.uNodeAmplitude = pulse.amplitude;
+    shader.vertexShader = `uniform float uNodeTime;\nuniform float uNodeAmplitude;\n${shader.vertexShader}`;
+    shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `
+      #include <begin_vertex>
+      #ifdef USE_INSTANCING
+        float phase = dot(instanceMatrix[3].xyz, vec3(1.7, 2.3, 0.9));
+        transformed *= 1.0 + uNodeAmplitude * sin(uNodeTime * ${2 * Math.PI / NODE_APPEARANCE.pulsePeriod} + phase);
+      #endif
+    `);
+  };
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const colors = useMemo(() => [new THREE.Color(palette.node), new THREE.Color(palette.muted)], [palette]);
   const indexById = useMemo(() => new Map(props.nodes.map((n, i) => [n.id, i])), [props.nodes]);
@@ -131,8 +163,8 @@ function Network({ positions, palette, ...props }: Props & { positions: Map<stri
       onPointerOver={e => { e.stopPropagation(); setHovered(nodeAt(e)?.id ?? null); }}
       onPointerMove={e => { if (e.pointerType === 'touch') return; e.stopPropagation(); setHovered(nodeAt(e)?.id ?? null); }}
       onPointerOut={() => setHovered(null)}>
-      <sphereGeometry args={[1, 10, 8]} />
-      <meshLambertMaterial />
+      <sphereGeometry args={[1, NODE_APPEARANCE.widthSegments, NODE_APPEARANCE.heightSegments]} />
+      <meshLambertMaterial onBeforeCompile={animateMaterial} customProgramCacheKey={() => 'brain-node-pulse-v1'} />
     </instancedMesh>
     {active && props.showLabels && <Html position={positions.get(active.id)} center zIndexRange={[20, 0]} style={{ pointerEvents: 'none' }}>
       <div className="pointer-events-none -translate-y-8 max-w-48 truncate rounded-md border border-border/10 bg-popover/95 px-3 py-2 text-xs text-popover-foreground shadow-md">{active.label}</div>
@@ -169,8 +201,7 @@ const CameraRig = forwardRef<BrainGraphHandle, { inside: boolean }>(function Cam
       control.update(); invalidate();
     },
   }));
-  // `regress` lets AdaptiveDpr/AdaptiveEvents lower the cost while the user is rotating.
-  return <OrbitControls ref={controls} makeDefault regress enableDamping dampingFactor={0.08} minDistance={0.12} maxDistance={34} zoomSpeed={0.85} rotateSpeed={0.65} enablePan />;
+  return <OrbitControls ref={controls} makeDefault enableDamping dampingFactor={0.08} minDistance={0.12} maxDistance={34} zoomSpeed={0.85} rotateSpeed={0.65} enablePan />;
 });
 
 class SceneBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
@@ -184,12 +215,16 @@ export const BrainGraph3D = forwardRef<BrainGraphHandle, Props>(function BrainGr
   const positions = useMemo(() => layoutBrainNodes(props.nodes, props.links), [props.nodes, props.links]);
   useEffect(() => {
     const css = getComputedStyle(document.documentElement);
-    setPalette({ node: css.getPropertyValue('--graph-node').trim(), muted: css.getPropertyValue('--graph-muted').trim(), background: css.getPropertyValue('--bg-base').trim() });
-  }, [props.theme]);
+    setPalette({
+      node: css.getPropertyValue('--graph-node').trim(),
+      muted: css.getPropertyValue('--graph-muted').trim(),
+      background: props.backgroundColor ?? css.getPropertyValue('--bg-base').trim(),
+    });
+  }, [props.backgroundColor, props.theme]);
   const fallback = <div className="absolute inset-0 flex items-center justify-center p-8 text-center text-sm text-muted-foreground">{props.unavailableText}</div>;
   if (!palette) return null;
   return <SceneBoundary fallback={fallback}>
-    <Canvas className="touch-none" frameloop="demand" dpr={[1, 1.5]} performance={{ min: 0.5 }}
+    <Canvas className="touch-none" frameloop="demand" dpr={[1, 2]}
       camera={{ position: [10, 2, 7], fov: 45, near: 0.015, far: 120 }}
       gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
       fallback={fallback} onPointerMissed={props.onClear}>
@@ -197,11 +232,9 @@ export const BrainGraph3D = forwardRef<BrainGraphHandle, Props>(function BrainGr
       <ambientLight intensity={1.6} />
       <directionalLight position={[5, 8, 6]} intensity={2.2} />
       <directionalLight position={[-6, -3, -5]} intensity={0.6} />
-      <Scaffold palette={palette} inside={props.inside} />
+      <Scaffold palette={palette} inside={props.inside} count={props.scaffoldCount ?? 2800} />
       {props.nodes.length > 0 && <Network {...props} positions={positions} palette={palette} />}
       <CameraRig ref={ref} inside={props.inside} />
-      <AdaptiveDpr />
-      <AdaptiveEvents />
     </Canvas>
   </SceneBoundary>;
 });

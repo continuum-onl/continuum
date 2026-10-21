@@ -5,6 +5,8 @@ import { usePlanGate } from "@/hooks/usePlanGate";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { qk } from "@/lib/queries";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { nextNumberedNoteTitle } from "@/lib/numbered-note-title";
 
 interface UseCreateNoteOptions {
   /** Called when the plan limit is reached (e.g. open the upgrade modal). */
@@ -18,12 +20,14 @@ interface UseCreateNoteOptions {
  * on a temporary URL when the backend was slow or the request failed.
  */
 export function useCreateNote(options: UseCreateNoteOptions = {}) {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { canCreateNote, refresh, applyUsageDelta } = usePlanGate();
   const queryClient = useQueryClient();
   const [creating, setCreating] = useState(false);
   const inFlight = useRef(false);
+  const untitledPrefix = t("notes_untitled").toLowerCase();
 
   const createNote = useCallback(async () => {
     if (inFlight.current) return;
@@ -39,7 +43,7 @@ export function useCreateNote(options: UseCreateNoteOptions = {}) {
     const optimisticId = `optimistic-note-${Date.now()}`;
     const optimisticNote = {
       id: optimisticId,
-      title: "Untitled",
+      title: untitledPrefix,
       content: "",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -47,7 +51,18 @@ export function useCreateNote(options: UseCreateNoteOptions = {}) {
     queryClient.setQueryData(qk.notes(), (prev: any[] | undefined) => [optimisticNote, ...(prev ?? [])]);
 
     try {
-      const { data } = await notesApi.create("Untitled", "");
+      const notesResponse = await notesApi.list();
+      if (!Array.isArray(notesResponse.data)) throw new Error("Could not load notes");
+      const title = nextNumberedNoteTitle(
+        notesResponse.data.map((note: { title?: string }) => note.title ?? ""),
+        untitledPrefix,
+        ["Untitled", "Sin título", "Sem título", "Sans titre"]
+      );
+      queryClient.setQueryData(qk.notes(), (prev: any[] | undefined) =>
+        (prev ?? []).map((note) => note.id === optimisticId ? { ...note, title } : note)
+      );
+
+      const { data } = await notesApi.create(title, "");
       if (!data?.id) throw new Error("Invalid response from server");
       queryClient.setQueryData(qk.note(data.id), data);
       queryClient.setQueryData(qk.notes(), (prev: any[] | undefined) =>
@@ -74,7 +89,7 @@ export function useCreateNote(options: UseCreateNoteOptions = {}) {
       inFlight.current = false;
       setCreating(false);
     }
-  }, [canCreateNote, applyUsageDelta, refresh, navigate, toast, options, queryClient]);
+  }, [canCreateNote, applyUsageDelta, refresh, navigate, toast, options, queryClient, untitledPrefix]);
 
   return { createNote, creating, canCreateNote };
 }

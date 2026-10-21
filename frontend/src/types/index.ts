@@ -61,6 +61,8 @@ export interface Entity {
   title: string;
   type: EntityType;
   description?: string;
+  favorite?: boolean;
+  pinned?: boolean;
   trackingDates?: string[];
   createdAt: string;
   ownerId?: string;

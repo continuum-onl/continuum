@@ -336,6 +336,23 @@ public class TimeTrackingService {
     }
 
     /**
+     * Update the duration of an existing time entry (e.g. reduce tracked time)
+     */
+    public TimeEntryResponse updateTimeEntryDuration(String userId, String entryId, Long durationSeconds) {
+        if (durationSeconds == null || durationSeconds <= 0) {
+            throw new IllegalArgumentException("durationSeconds must be positive");
+        }
+        TimeEntry entry = timeEntryRepository.findById(entryId)
+                .orElseThrow(() -> new IllegalArgumentException("Time entry not found"));
+        if (!entry.getUserId().equals(userId)) {
+            throw new SecurityException("Unauthorized access to time entry");
+        }
+        entry.setDurationSeconds(durationSeconds);
+        entry.setUpdatedAt(java.time.Instant.now());
+        return TimeEntryResponse.fromEntity(timeEntryRepository.save(entry));
+    }
+
+    /**
      * Get active timer for an entity
      */
     public Optional<TimerSessionResponse> getActiveTimer(String userId, String entityId) {

@@ -107,7 +107,7 @@ export default function Pricing() {
             type="button"
             variant="outline"
             onClick={() => navigate("/register")}
-            className="h-11 text-[11px] uppercase tracking-[0.28em] rounded-sm"
+            className="h-11 text-[11px] uppercase tracking-[0.28em] rounded-xl"
           >
             {t("bill_start_for_free")}
           </Button>
@@ -115,7 +115,7 @@ export default function Pricing() {
             type="button"
             variant="white"
             onClick={() => navigate("/settings")}
-            className="h-11 text-[11px] uppercase tracking-[0.28em] rounded-sm"
+            className="h-11 text-[11px] uppercase tracking-[0.28em] rounded-xl"
           >
             {t("bill_upgrade_to_vision")}
           </Button>

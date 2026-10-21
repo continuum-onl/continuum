@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 
@@ -29,6 +29,8 @@ vi.mock("@/components/ui/smooth-drawer", () => ({
 vi.mock("@/components/ui/confirm-dialog", () => ({ ConfirmDialog: () => null }));
 vi.mock("@/components/ui/fit-text", () => ({ FitText: ({ children }: { children: React.ReactNode }) => <span>{children}</span> }));
 
+vi.mock("@/components/QuickCapture", () => ({ QuickCapture: () => null }));
+
 import Notes from "@/pages/Notes";
 
 afterEach(() => {
@@ -37,7 +39,7 @@ afterEach(() => {
 });
 
 describe("desktop Notes sidebar", () => {
-  it("opens and closes through Others, retaining visibility after choosing filters and clicking elsewhere", () => {
+  it("opens and closes through Others, retaining visibility after choosing filters and clicking elsewhere", async () => {
     vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
       matches: query === "(min-width: 1024px)",
       media: query,
@@ -59,13 +61,13 @@ describe("desktop Notes sidebar", () => {
     expect(sidebar).not.toHaveTextContent("notes_index");
     expect(sidebar).not.toHaveTextContent("notes_recent");
     expect(screen.getByRole("button", { name: "notes_create_type" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "notes_delete_type" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "notes_allTypes" }));
+    expect(screen.getAllByRole("button", { name: "notes_delete_type" })).toHaveLength(fixtures.types.length);
+    fireEvent.click(screen.getByRole("button", { name: /^notes_allTypes\b/ }));
     fireEvent.click(screen.getByRole("heading", { name: "notes_title" }));
     expect(sidebar).toBeInTheDocument();
 
     fireEvent.click(toggle);
-    expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("complementary")).not.toBeInTheDocument());
   });
 });
 

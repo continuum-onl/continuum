@@ -1,0 +1,1 @@
+export const MAX_ENTITY_DESCRIPTION_LENGTH = 1000;

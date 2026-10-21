@@ -7,6 +7,8 @@ import { useTimerGoal } from '@/hooks/useTimerGoal';
 import { useLanguage } from '@/contexts/LanguageContext';
 import SmoothDrawer from '@/components/ui/smooth-drawer';
 import { Button } from '@/components/ui/button';
+import { InfoPopover } from '@/components/ui/info-popover';
+import { ProjectDayTimeEntries } from '@/components/ProjectDayTimeEntries';
 
 interface Props {
   /** Optional entityId filter; when omitted, aggregates across user. */
@@ -182,6 +184,7 @@ export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
 
   const { activeTimers, addTimeAsync, isAdding } = useTimeTracking();
   const [hover, setHover] = useState<HoverCell | null>(null);
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const hoverRef = useRef<HoverCell | null>(null);
   hoverRef.current = hover;
 
@@ -353,9 +356,14 @@ export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
   return (
     <section className="relative py-5 sm:py-6">
       <div className="flex items-baseline justify-between gap-3 mb-4 flex-wrap">
-        <h3 className="text-xs uppercase tracking-widest text-muted-foreground font-mono">
-          {t('tm_activity_heatmap')}
-        </h3>
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-xs uppercase tracking-widest text-muted-foreground font-mono">
+            {t('tm_activity_heatmap')}
+          </h3>
+          {entityId && (
+            <InfoPopover description={t('tm_project_day_hint')} />
+          )}
+        </div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="whitespace-normal text-[10px] text-muted-foreground font-mono">
             {t('tm_active_days_summary', { count: activeDays, time: fmtHM(totalSeconds) })}
@@ -505,8 +513,15 @@ export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
                             onMouseLeave={() => setHover(null)}
                             onClick={(e) => {
                               e.stopPropagation();
-                              openCell(e.currentTarget, cell);
+                              if (entityId) {
+                                setHover(null);
+                                setSelectedDay(cell.key);
+                              } else {
+                                openCell(e.currentTarget, cell);
+                              }
                             }}
+                            aria-label={entityId ? `${cell.key}, ${fmtHM(cell.seconds)}, ${cell.count} ${t('tm_entry_plural')}` : cell.key}
+                            title={entityId ? t('tm_project_day_open') : undefined}
                             disabled={isFuture}
                             className={`w-[14px] h-[14px] sm:w-[13px] sm:h-[13px] rounded-[3px] ${
                               isFuture ? 'bg-transparent' : LEVEL_BG[lvl]
@@ -557,6 +572,15 @@ export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
             <span>{t('tm_more')}</span>
           </div>
         </div>
+      )}
+      {entityId && (
+        <ProjectDayTimeEntries
+          entityId={entityId}
+          date={selectedDay}
+          onOpenChange={(open) => {
+            if (!open) setSelectedDay(null);
+          }}
+        />
       )}
     </section>
   );

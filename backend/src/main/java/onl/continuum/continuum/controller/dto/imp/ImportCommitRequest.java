@@ -13,8 +13,12 @@ public record ImportCommitRequest(
             String filename,
             String title,
             JsonNode content,
-            List<String> candidateKeys
+            List<String> candidateKeys,
+            Long lastModified,
+            List<ImportedAsset> assets
     ) {}
+
+    public record ImportedAsset(String reference, String fileId) {}
 
     public record EntityDecision(
             String key,

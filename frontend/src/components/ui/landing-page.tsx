@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { Component as Globe } from "@/components/ui/interactive-globe";
 import { cn } from "@/lib/utils";
+
+const LandingGraphPreview = lazy(() => import("@/components/landing/LandingGraphPreview"));
 
 interface ScrollGlobeProps {
   sections: {
@@ -12,7 +14,7 @@ interface ScrollGlobeProps {
     align?: "left" | "center" | "right";
     features?: { title: string; description: string; image?: string }[];
     actions?: { label: string; variant: "primary" | "secondary"; onClick?: () => void }[];
-    screenshots?: { src?: string; alt: string; caption?: string }[];
+    screenshots?: { src?: string; alt: string; caption?: string; graphPreview?: boolean }[];
   }[];
   globeConfig?: {
     positions: { top: string; left: string; scale: number }[];
@@ -28,6 +30,48 @@ const defaultGlobeConfig = {
     { top: "50%", left: "50%", scale: 1.8 },
   ],
 };
+
+function DeferredLandingGraphPreview({ label }: { label: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || visible) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        setVisible(true);
+        observer.disconnect();
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [visible]);
+
+  return (
+    <div
+      ref={containerRef}
+      aria-label={label}
+      aria-roledescription="interactive 3D graph preview"
+      className="relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-[#0d1718] to-black"
+    >
+      {visible ? (
+        <Suspense
+          fallback={<div className="absolute inset-0 animate-pulse bg-gradient-to-br from-[#0d1718] to-black" />}
+        >
+          <LandingGraphPreview />
+        </Suspense>
+      ) : null}
+    </div>
+  );
+}
 
 const parsePercent = (str: string): number => parseFloat(str.replace("%", ""));
 
@@ -245,7 +289,9 @@ export function ScrollGlobe({ sections, globeConfig = defaultGlobeConfig, classN
                     className="group relative overflow-hidden rounded-xl border border-white/10 bg-white/[0.02] backdrop-blur-sm hover:border-white/20 hover:bg-white/[0.04] transition-all"
                   >
                     <div className="w-full overflow-hidden bg-gradient-to-br from-white/[0.04] via-white/[0.02] to-transparent">
-                      {shot.src ? (
+                      {shot.graphPreview ? (
+                        <DeferredLandingGraphPreview label={shot.alt} />
+                      ) : shot.src ? (
                         <img
                           src={shot.src}
                           alt={shot.alt}

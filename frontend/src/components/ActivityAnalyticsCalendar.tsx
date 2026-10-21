@@ -8,9 +8,11 @@ import { useLanguage } from "@/contexts/LanguageContext";
 interface ActivityAnalyticsCalendarProps {
   trackingDates?: string[];
   historyDays?: number;
+  isUpdating?: boolean;
+  onToggleDate?: (date: string, done: boolean) => void;
 }
 
-export function ActivityAnalyticsCalendar({ trackingDates = [] }: ActivityAnalyticsCalendarProps) {
+export function ActivityAnalyticsCalendar({ trackingDates = [], isUpdating = false, onToggleDate }: ActivityAnalyticsCalendarProps) {
   const { t } = useLanguage();
   const completionSet = useMemo(() => {
     const s = new Set<string>();
@@ -58,7 +60,14 @@ export function ActivityAnalyticsCalendar({ trackingDates = [] }: ActivityAnalyt
 
       {/* Calendar */}
       <div className="py-5">
-        <Cal aria-label={t("tm_activity_calendar_label")} className="w-full">
+        <Cal
+          aria-label={t("tm_activity_calendar_label")}
+          className="w-full"
+          maxValue={now}
+          value={null}
+          isDisabled={isUpdating}
+          onChange={(d) => { if (d && onToggleDate) { const k = d.toString(); onToggleDate(k, completionSet.has(k)); } }}
+        >
           <header className="flex items-center gap-1 pb-3 sm:pb-4">
             <RACButton
               slot="previous"
@@ -93,7 +102,7 @@ export function ActivityAnalyticsCalendar({ trackingDates = [] }: ActivityAnalyt
                     date={date}
                     className={cn(
                       "relative mx-auto flex aspect-square w-full max-w-9 sm:max-w-10 md:max-w-11 items-center justify-center rounded-sm border text-xs outline-none transition-colors",
-                      "data-[outside-month]:opacity-30 data-[focus-visible]:ring-1 data-[focus-visible]:ring-ring",
+                      "cursor-pointer data-[disabled]:cursor-default data-[disabled]:opacity-30 data-[outside-month]:opacity-30 data-[focus-visible]:ring-1 data-[focus-visible]:ring-ring",
                       isCompleted
                         ? "border-border/30 bg-foreground/15 text-foreground"
                         : "border-border/5 bg-transparent text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
@@ -106,6 +115,9 @@ export function ActivityAnalyticsCalendar({ trackingDates = [] }: ActivityAnalyt
           </CalendarGrid>
         </Cal>
 
+        {onToggleDate && (
+          <p className="mt-3 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">{t("tm_toggle_day_hint")}</p>
+        )}
         {/* Legend */}
         <div className="mt-5 flex flex-wrap items-center justify-start gap-x-4 gap-y-2 border-t border-border/10 pt-4 font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground sm:justify-end sm:text-[10px] sm:tracking-widest">
           <div className="flex items-center gap-2">

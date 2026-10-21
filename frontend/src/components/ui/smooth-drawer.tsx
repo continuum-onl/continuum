@@ -4,7 +4,7 @@
  * app's tokens, framer-motion and controlled usage.
  */
 import type * as React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import {
@@ -32,6 +32,8 @@ export const smoothDrawerItem = {
 interface SmoothDrawerProps {
   /** Open at a compact snap point, then expand with an upward drag. */
   expandable?: boolean;
+  /** Allow an upward swipe from the body to expand a compact drawer. */
+  dragFromContent?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title?: React.ReactNode;
@@ -62,11 +64,47 @@ export default function SmoothDrawer({
   bodyClassName,
   repositionInputs = true,
   expandable = false,
+  dragFromContent = false,
 }: SmoothDrawerProps) {
   const [activeSnapPoint, setActiveSnapPoint] = useState<number | string | null>(0.32);
+  const contentRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) setActiveSnapPoint(0.32);
   }, [open]);
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!content || !open || !expandable || !dragFromContent || activeSnapPoint === 0.92) return;
+
+    let startY: number | null = null;
+    const onTouchStart = (event: TouchEvent) => {
+      if (event.target instanceof Element && event.target.closest("button, a, input, textarea, select, [data-vaul-no-drag]")) {
+        startY = null;
+        return;
+      }
+      startY = event.touches[0]?.clientY ?? null;
+    };
+    const onTouchMove = (event: TouchEvent) => {
+      const currentY = event.touches[0]?.clientY;
+      if (startY === null || currentY === undefined || startY - currentY < 12) return;
+      event.preventDefault();
+      startY = null;
+      setActiveSnapPoint(0.92);
+    };
+    const clearTouch = () => {
+      startY = null;
+    };
+
+    content.addEventListener("touchstart", onTouchStart, { passive: true });
+    content.addEventListener("touchmove", onTouchMove, { passive: false });
+    content.addEventListener("touchend", clearTouch);
+    content.addEventListener("touchcancel", clearTouch);
+    return () => {
+      content.removeEventListener("touchstart", onTouchStart);
+      content.removeEventListener("touchmove", onTouchMove);
+      content.removeEventListener("touchend", clearTouch);
+      content.removeEventListener("touchcancel", clearTouch);
+    };
+  }, [activeSnapPoint, dragFromContent, expandable, open]);
   const snapProps: React.ComponentProps<typeof Drawer> = expandable ? {
     snapPoints: [0.32, 0.92],
     activeSnapPoint,
@@ -94,6 +132,7 @@ export default function SmoothDrawer({
           initial="hidden"
           animate="visible"
           variants={containerVariants as never}
+          ref={contentRef}
           className={cn("flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain", expandable && activeSnapPoint !== 0.92 && "overflow-y-hidden", bodyClassName)}
         >
           <motion.div variants={smoothDrawerItem as never} className={hideHeader ? "sr-only" : undefined}>

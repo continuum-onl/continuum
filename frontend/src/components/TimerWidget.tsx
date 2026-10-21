@@ -259,13 +259,13 @@ export function TimerWidget({
   if (compact) {
     return (
       <div className="flex items-center gap-2">
-        <span className="font-mono text-sm text-zinc-400">{timeString}</span>
+        <span className="font-mono text-sm text-muted-foreground">{timeString}</span>
         {isRunning ? (
           <button
             onClick={handleStop}
             disabled={isStopping}
             title={t("tm_stop_timer")}
-            className="h-6 w-6 flex items-center justify-center rounded border border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 transition text-xs"
+            className="h-6 w-6 flex items-center justify-center rounded border border-border/10 bg-card text-muted-foreground hover:bg-card transition text-xs"
           >
             ■
           </button>
@@ -274,7 +274,7 @@ export function TimerWidget({
             onClick={handleStart}
             disabled={isStarting}
             title={t("tm_start_timer")}
-            className="h-6 w-6 flex items-center justify-center rounded border border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800 transition text-xs"
+            className="h-6 w-6 flex items-center justify-center rounded border border-border/10 bg-card text-muted-foreground hover:bg-card transition text-xs"
           >
             ▶
           </button>

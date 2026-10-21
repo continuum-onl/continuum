@@ -1,7 +1,7 @@
 {
   "name": "Continuum",
   "short_name": "Continuum",
-  "description": "Personal Knowledge Management Platform",
+  "description": "A personal journal app for daily entries, thoughts and connected notes.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

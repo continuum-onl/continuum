@@ -14,7 +14,9 @@ public record ImportPreviewResponse(
             String title,
             JsonNode content,
             List<String> candidateKeys,
-            int wordCount
+            int wordCount,
+            List<String> assetReferences,
+            Long lastModified
     ) {}
 
     public record EntityCandidate(

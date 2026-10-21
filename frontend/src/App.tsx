@@ -3,7 +3,7 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import { useIsRestoring } from "@tanstack/react-query";
 import { createIdbPersister, QUERY_CACHE_BUSTER } from "@/lib/offline/query-persister";
 import { queryClient } from "@/lib/query-client";
-import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
@@ -27,7 +27,6 @@ import { Capacitor } from "@capacitor/core";
 import { SystemBars, SystemBarsStyle } from "@capacitor/core";
 import { App as CapacitorApp } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
-import { useNavigate } from "react-router-dom";
 
 // Auth-critical screens stay eager (they gate the first paint); everything else
 // is code-split and streamed in behind a skeleton.
@@ -160,6 +159,52 @@ function NativeGoogleAuthRedirect() {
   return null;
 }
 
+function NativeBackButton() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let disposed = false;
+    let removeListener: (() => void) | undefined;
+    void CapacitorApp.addListener("backButton", ({ canGoBack }) => {
+      if (location.pathname.startsWith("/notes/")) {
+        if (window.history.state?.idx > 0) navigate(-1);
+        else navigate("/notes", { replace: true });
+      } else if (canGoBack) {
+        navigate(-1);
+      } else {
+        void CapacitorApp.exitApp();
+      }
+    }).then((listener) => {
+      if (disposed) {
+        void listener.remove();
+      } else {
+        removeListener = () => { void listener.remove(); };
+      }
+    });
+
+    return () => {
+      disposed = true;
+      removeListener?.();
+    };
+  }, [location.pathname, navigate]);
+
+  return null;
+}
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  React.useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+    document.querySelector("main")?.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+}
+
 function RouteFallback() {
   return (
     <div className="min-h-screen bg-background">
@@ -276,6 +321,8 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <NativeGoogleAuthRedirect />
+          <NativeBackButton />
+          <ScrollToTop />
           <AuthProvider>
             <ThemeProvider>
               <LanguageProvider>

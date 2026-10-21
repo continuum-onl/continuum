@@ -19,17 +19,20 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { InsightSignalBadge } from "@/components/InsightSignal";
+import { ExpandableEntityDescription } from "@/components/ExpandableEntityDescription";
 
 import { useToast } from "@/hooks/use-toast";
 import { ActivityAnalyticsCalendar } from "@/components/ActivityAnalyticsCalendar";
 import { EntityTypeIcon } from "@/components/ui/entity-type-icon";
 import { TimerWidget } from "@/components/TimerWidget";
 import { TimeHeatmap } from "@/components/TimeHeatmap";
+import { ProjectDayTimeEntries } from "@/components/ProjectDayTimeEntries";
 import type { HeatmapData, EntityStats } from "@/types";
 import { useTimeTracking } from "@/hooks/useTimeTracking";
 import { usePlanGate } from "@/hooks/usePlanGate";
 import { queryClient } from "@/lib/query-client";
 import { qk, STALE } from "@/lib/queries";
+import { MAX_ENTITY_DESCRIPTION_LENGTH } from "@/lib/entity-description";
 
 
 interface EntityData { id: string; title: string; type: string; description?: string; trackingDates?: string[]; createdAt: string; }
@@ -38,7 +41,7 @@ interface RelatedNote { id: string; title: string; createdAt: string; updatedAt:
 
 function DetailStat({ label, value, icon: Icon }: { label: string; value: string | number; icon: typeof Calendar }) {
   return (
-    <div className="flex min-w-0 items-start gap-2 rounded-md bg-secondary/60 px-3 py-2.5 sm:gap-2.5 sm:px-4">
+    <div className="flex min-w-0 items-start gap-2 rounded-xl bg-secondary/60 px-3 py-2.5 sm:gap-2.5 sm:px-4">
       <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
       <span className="min-w-0">
         <span className="block whitespace-normal break-words text-[9px] font-medium uppercase leading-snug tracking-[0.12em] text-muted-foreground sm:text-[10px] sm:tracking-[0.16em]">{label}</span>
@@ -66,6 +69,7 @@ export default function EntityDetail() {
   const [editingType, setEditingType] = useState(false);
   const [newType, setNewType] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [trackingDateBusy, setTrackingDateBusy] = useState(false);
   const [relatedNotes, setRelatedNotes] = useState<RelatedNote[]>(() => id ? queryClient.getQueryData<RelatedNote[]>(qk.entityNotes(id)) ?? [] : []);
   const [relatedEntities, setRelatedEntities] = useState<EntityData[]>(() => id
     ? (queryClient.getQueryData<EntityData[]>(qk.entityConnections(id)) ?? []).filter((item) => item.id !== id)
@@ -231,49 +235,65 @@ export default function EntityDetail() {
 
   const localToday = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().split("T")[0]; };
   const [trackDate, setTrackDate] = useState(localToday);
-  const handleTrack = async (pickedDate?: string) => {
-    if (!id) return;
-    const today = pickedDate || localToday();
+  const handleToggleActivityDate = async (
+    date: string,
+    currentlyTracked: boolean,
+    successMessageKey = currentlyTracked ? "tm_day_unmarked" : "tm_day_marked",
+  ) => {
+    if (!id || !entity || trackingDateBusy) return;
+    setTrackingDateBusy(true);
+    const previousDates = entity.trackingDates ?? [];
+    const nextDates = currentlyTracked
+      ? previousDates.filter((trackedDate) => trackedDate.split("T")[0] !== date)
+      : Array.from(new Set([...previousDates.map((trackedDate) => trackedDate.split("T")[0]), date]));
+    const updateTrackingDates = (current: EntityData | undefined) =>
+      current ? { ...current, trackingDates: nextDates } : current;
+
+    setEntity((current) => updateTrackingDates(current ?? undefined) ?? null);
+    setHeatmap(buildHeatmapFromTrackingDates(nextDates));
+    setStats((current) => current ? { ...current, totalCompletions: nextDates.length } : current);
+    queryClient.setQueryData<EntityData>(qk.entity(id), updateTrackingDates);
+    queryClient.setQueryData<EntityData[]>(qk.entities(), (current) =>
+      current?.map((item) => item.id === id ? { ...item, trackingDates: nextDates } : item)
+    );
 
     try {
-      // Optimistically update tracking dates and heatmap
-      setEntity((prev) => {
-        if (!prev) return prev;
-        const normalizedDates = Array.from(
-          new Set([...(prev.trackingDates || []).map((date) => date.split("T")[0]), today])
-        );
-        return {
-          ...prev,
-          trackingDates: normalizedDates,
-        };
-      });
-
-      setHeatmap((prev) => ({
-        ...prev,
-        [today]: (prev[today] || 0) + 1,
-      }));
-
-      await entitiesApi.track(id, today);
-
-      const [eRes, sRes, hRes] = await Promise.all([
-        entitiesApi.get(id),
-        entitiesApi.stats(id),
-        entitiesApi.heatmap(id),
-      ]);
-
-      const freshData = eRes.data;
-      const freshHeatmap = normalizeHeatmapData(hRes.data);
-      if (!freshHeatmap[today]) {
-        freshHeatmap[today] = 1;
-      }
-
-      setEntity(freshData);
-      setStats(sRes.data);
-      setHeatmap(freshHeatmap);
-      toast({ title: t("ent_registered") });
+      const response = currentlyTracked
+        ? await entitiesApi.untrack(id, date)
+        : await entitiesApi.track(id, date);
+      const savedEntity = response.data as EntityData;
+      setEntity(savedEntity);
+      setHeatmap(buildHeatmapFromTrackingDates(savedEntity.trackingDates ?? []));
+      setStats((current) => current
+        ? { ...current, totalCompletions: savedEntity.trackingDates?.length ?? 0 }
+        : current);
+      queryClient.setQueryData(qk.entity(id), savedEntity);
+      queryClient.setQueryData<EntityData[]>(qk.entities(), (current) =>
+        current?.map((item) => item.id === id ? { ...item, trackingDates: savedEntity.trackingDates } : item)
+      );
+      void queryClient.invalidateQueries({ queryKey: qk.entities() });
+      toast({ title: t(successMessageKey) });
     } catch {
+      setEntity((current) => current ? { ...current, trackingDates: previousDates } : current);
+      setHeatmap(buildHeatmapFromTrackingDates(previousDates));
+      setStats((current) => current ? { ...current, totalCompletions: previousDates.length } : current);
+      queryClient.setQueryData<EntityData>(qk.entity(id), (current) =>
+        current ? { ...current, trackingDates: previousDates } : current
+      );
+      queryClient.setQueryData<EntityData[]>(qk.entities(), (current) =>
+        current?.map((item) => item.id === id ? { ...item, trackingDates: previousDates } : item)
+      );
+      void queryClient.invalidateQueries({ queryKey: qk.entity(id) });
+      void queryClient.invalidateQueries({ queryKey: qk.entities() });
       toast({ title: t("ent_error"), variant: "destructive" });
+    } finally {
+      setTrackingDateBusy(false);
     }
+  };
+  const handleTrack = (pickedDate?: string) => {
+    const date = pickedDate || localToday();
+    if (entity?.trackingDates?.some((trackedDate) => trackedDate.split("T")[0] === date)) return;
+    void handleToggleActivityDate(date, false, "ent_registered");
   };
 
   const handleSaveTitle = async () => {
@@ -291,7 +311,7 @@ export default function EntityDetail() {
   const handleSaveDescription = async () => {
     if (!id) return;
     try {
-      const { data } = await entitiesApi.update(id, { description: newDescription.trim() });
+      const { data } = await entitiesApi.update(id, { description: newDescription.slice(0, MAX_ENTITY_DESCRIPTION_LENGTH).trim() });
       setEntity(data);
       queryClient.setQueryData(qk.entity(id), data);
       void queryClient.invalidateQueries({ queryKey: ["entities", "list"] });
@@ -330,7 +350,7 @@ export default function EntityDetail() {
   if (loading)
     return (
       <AppLayout>
-        <div className="mx-auto w-full max-w-5xl animate-fade-in px-4 py-8 sm:px-6">
+        <div className="mx-auto w-full max-w-6xl animate-fade-in px-4 py-8 sm:px-6">
           <Skeleton className="h-3 w-24" />
           <Skeleton className="mt-4 h-10 w-2/3 max-w-sm" />
           <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -362,7 +382,7 @@ export default function EntityDetail() {
 
   return (
     <AppLayout>
-      <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-12">
+      <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-10 lg:py-12">
         <Button
           variant="quiet"
           size="sm"
@@ -407,18 +427,32 @@ export default function EntityDetail() {
 
             {editingDescription ? (
               <div className="mt-5 flex flex-col gap-2">
-                <Textarea value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder={t("ent_add_description_placeholder")} className="text-sm" rows={3} />
+                <Textarea
+                  value={newDescription}
+                  onChange={(e) => setNewDescription(e.target.value)}
+                  placeholder={t("ent_add_description_placeholder")}
+                  className="text-sm"
+                  rows={3}
+                  maxLength={MAX_ENTITY_DESCRIPTION_LENGTH}
+                />
+                <p className="text-right text-[10px] text-muted-foreground">
+                  {t("ent_description_character_count", { count: newDescription.length })}
+                </p>
                 <div className="flex gap-2">
                   <Button size="sm" onClick={handleSaveDescription}>{t("ent_save")}</Button>
-                  <Button size="sm" variant="outline" onClick={() => { setEditingDescription(false); setNewDescription(entity.description || ""); }}>{t("ent_cancel")}</Button>
+                  <Button size="sm" variant="outline" onClick={() => { setEditingDescription(false); setNewDescription(entity.description?.slice(0, MAX_ENTITY_DESCRIPTION_LENGTH) || ""); }}>{t("ent_cancel")}</Button>
                 </div>
               </div>
             ) : (
               <div className="group mt-4 flex items-start gap-2 sm:ml-[4.5rem]">
-                <p className="min-w-0 flex-1 text-sm leading-6 text-muted-foreground">
-                  {entity.description || <span className="italic text-muted-foreground/60">{t("ent_no_description")}</span>}
-                </p>
-                <Button variant="ghost" size="iconSm" onClick={() => { setEditingDescription(true); setNewDescription(entity.description || ""); }} className="shrink-0 rounded-full text-muted-foreground hover:text-foreground" aria-label={t("ent_edit_description")}>
+                <div className="min-w-0 flex-1 text-sm leading-6 text-muted-foreground">
+                  {entity.description ? (
+                    <ExpandableEntityDescription key={entity.id} description={entity.description} />
+                  ) : (
+                    <p className="italic text-muted-foreground/60">{t("ent_no_description")}</p>
+                  )}
+                </div>
+                <Button variant="ghost" size="iconSm" onClick={() => { setEditingDescription(true); setNewDescription(entity.description?.slice(0, MAX_ENTITY_DESCRIPTION_LENGTH) || ""); }} className="shrink-0 rounded-full text-muted-foreground hover:text-foreground" aria-label={t("ent_edit_description")}>
                   <Edit className="h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -443,7 +477,7 @@ export default function EntityDetail() {
             {isHabit && (
               <div className="mt-5 flex flex-col gap-2 border-t border-border/10 pt-4 sm:ml-[4.5rem] sm:flex-row sm:items-center">
                 <Input type="date" value={trackDate} max={localToday()} onChange={(e) => setTrackDate(e.target.value)} className="h-10 w-full sm:w-auto" aria-label={t("tm_date")} />
-                <Button size="sm" className="h-10 w-full rounded-xl sm:w-auto" onClick={() => handleTrack(trackDate)} disabled={!trackDate || trackDate > localToday()}>
+                <Button size="sm" className="h-10 w-full rounded-xl sm:w-auto" onClick={() => handleTrack(trackDate)} disabled={!trackDate || trackDate > localToday() || trackingDateBusy}>
                   {t("ent_save")}
                 </Button>
                 {trackedToday && <Badge variant="meta" className="self-center rounded-full px-3 py-1">{t("tm_done_today")}</Badge>}
@@ -469,7 +503,13 @@ export default function EntityDetail() {
 
         {isHabit && (
           <div className="mb-7">
-            <ActivityAnalyticsCalendar trackingDates={entity.trackingDates} />
+            <ActivityAnalyticsCalendar
+              trackingDates={entity.trackingDates}
+              isUpdating={trackingDateBusy}
+              onToggleDate={(date, currentlyTracked) => {
+                if (!trackingDateBusy) void handleToggleActivityDate(date, currentlyTracked);
+              }}
+            />
           </div>
         )}
 
@@ -506,7 +546,7 @@ export default function EntityDetail() {
                       <select
                         value={newType}
                         onChange={(e) => setNewType(e.target.value)}
-                        className="h-9 rounded-md border border-border/10 bg-background px-2 text-sm text-foreground"
+                        className="h-9 rounded-xl border border-border/10 bg-background px-2 text-sm text-foreground"
                       >
                         {entityTypeOptions.map((option) => (
                           <option key={option.value} value={option.value}>{option.label}</option>
@@ -562,7 +602,7 @@ export default function EntityDetail() {
                       key={note.id}
                       variant="ghost"
                       onClick={() => navigate(`/notes/${note.id}`)}
-                      className="flex h-auto w-full items-start justify-start gap-3 rounded-md border border-transparent px-3 py-3 text-left normal-case tracking-normal font-normal hover:bg-foreground/[0.035]"
+                      className="flex h-auto w-full items-start justify-start gap-3 rounded-xl border border-transparent px-3 py-3 text-left normal-case tracking-normal font-normal hover:bg-foreground/[0.035]"
                     >
                       <StickyNote className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       <div className="min-w-0 flex-1">
@@ -595,7 +635,7 @@ export default function EntityDetail() {
                       key={ent.id}
                       variant="ghost"
                       onClick={() => navigate(`/entities/${ent.id}`)}
-                      className="flex h-auto w-full items-start justify-start gap-3 rounded-md border border-transparent px-3 py-3 text-left normal-case tracking-normal font-normal hover:bg-foreground/[0.035]"
+                      className="flex h-auto w-full items-start justify-start gap-3 rounded-xl border border-transparent px-3 py-3 text-left normal-case tracking-normal font-normal hover:bg-foreground/[0.035]"
                     >
                       <Network className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                       <div className="min-w-0 flex-1">

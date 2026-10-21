@@ -11,6 +11,7 @@ import onl.continuum.continuum.application.exception.NotFoundException;
 import onl.continuum.continuum.application.service.TrashService;
 import java.net.URLDecoder;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import onl.continuum.continuum.application.service.EntityIndexService;
 import onl.continuum.continuum.controller.dto.vault.VaultFileDTO;
@@ -137,7 +138,7 @@ public class VaultController {
         }
 
         String contentType = file.getContentType();
-        String originalFilename = file.getOriginalFilename();
+        String originalFilename = safeFileName(file.getOriginalFilename(), contentType);
         if (!isAllowedUpload(originalFilename, contentType)) {
             return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE).build();
         }
@@ -200,6 +201,32 @@ public class VaultController {
         return ALLOWED_EXTENSIONS.contains(extension);
     }
 
+    private String safeFileName(String originalFilename, String contentType) {
+        if (originalFilename == null || originalFilename.isBlank()) {
+            return "file" + extensionForContentType(contentType);
+        }
+        String normalized = originalFilename.replace('\\', '/');
+        String baseName = normalized.substring(normalized.lastIndexOf('/') + 1).trim();
+        if (baseName.isBlank()) baseName = "file";
+        if (baseName.lastIndexOf('.') <= 0) {
+            baseName += extensionForContentType(contentType);
+        }
+        return baseName;
+    }
+
+    private String extensionForContentType(String contentType) {
+        if (contentType == null) return "";
+        return switch (contentType.toLowerCase(Locale.ROOT)) {
+            case "image/jpeg" -> ".jpg";
+            case "image/png" -> ".png";
+            case "image/webp" -> ".webp";
+            case "application/pdf" -> ".pdf";
+            case "audio/mpeg" -> ".mp3";
+            case "audio/mp4", "audio/x-m4a", "audio/m4a" -> ".m4a";
+            default -> "";
+        };
+    }
+
     private VaultFileDTO toDto(VaultStorageService.VaultFileDescriptor source) {
         return new VaultFileDTO(
                 source.fileId(),
@@ -224,8 +251,7 @@ public class VaultController {
     }
 
     private String buildFileId(String originalFilename) {
-        String safeFilename = originalFilename == null ? "file" : URLEncoder.encode(originalFilename, StandardCharsets.UTF_8);
-        return UUID.randomUUID() + "_" + safeFilename;
+        return UUID.randomUUID() + "_" + URLEncoder.encode(originalFilename, StandardCharsets.UTF_8);
     }
 }
 

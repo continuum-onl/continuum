@@ -292,7 +292,7 @@ export default function Entities() {
   return (
     <AppLayout>
       <div className="relative min-h-full">
-        <div className="mx-auto max-w-6xl px-6 py-5 lg:px-12 lg:py-10">
+        <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 py-5 lg:flex-row lg:items-start lg:gap-14 lg:px-12 lg:py-10">
           {/* Conteúdo Principal */}
           <main className="min-w-0 flex-1">
             {/* Header (desktop) */}
@@ -318,7 +318,7 @@ export default function Entities() {
             </header>
 
             {/* Mobile: search + type chips */}
-            <div className="mb-5 space-y-3">
+            <div className={selectMode ? "hidden lg:mb-5 lg:block lg:space-y-3" : "mb-5 space-y-3"}>
               <div className="flex items-center gap-2">
                 <div className="relative z-0 flex-1">
                   <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -346,14 +346,14 @@ export default function Entities() {
 
             {/* Selection action bar */}
             {selectMode && (
-              <div className="sticky top-[7.5rem] z-20 mb-6 flex flex-col items-stretch gap-3 rounded-sm border border-border/15 bg-background/80 px-3 py-2.5 backdrop-blur-xl md:flex-row md:items-center md:justify-between">
+              <div className="fixed inset-x-0 top-0 z-50 flex flex-col items-stretch gap-3 rounded-b-3xl border border-t-0 border-border/10 bg-background/95 px-6 pb-4 pt-[calc(env(safe-area-inset-top)+1rem)] shadow-2xl backdrop-blur-xl lg:sticky lg:inset-auto lg:top-[7.5rem] lg:z-20 lg:mb-6 lg:flex-row lg:items-center lg:justify-between lg:rounded-sm lg:bg-background/80 lg:px-3 lg:py-2.5 lg:shadow-none">
                 <span className="text-sm text-muted-foreground">{t("select_selected", { n: selectedIds.size })}</span>
-                <div className="grid w-full min-w-0 grid-cols-2 gap-2 md:flex md:w-auto md:flex-wrap">
+                <div className="grid w-full min-w-0 grid-cols-2 gap-2 lg:flex lg:w-auto lg:flex-wrap">
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="col-span-2 w-full justify-center normal-case px-3 py-1.5 text-xs text-muted-foreground hover:border-border/40 hover:text-foreground md:col-span-1 md:w-auto"
+                    className="col-span-2 w-full justify-center normal-case px-3 py-1.5 text-xs text-muted-foreground hover:border-border/40 hover:text-foreground lg:col-span-1 lg:w-auto"
                     onClick={() => {
                       const allIds = filteredAndSorted.map((e) => e.id);
                       const allSelected = allIds.every((id) => selectedIds.has(id));
@@ -366,7 +366,7 @@ export default function Entities() {
                     type="button"
                     variant="destructive"
                     size="sm"
-                    className="w-full justify-center normal-case inline-flex items-center gap-1.5 px-3 py-1.5 text-xs md:w-auto"
+                    className="w-full justify-center normal-case inline-flex items-center gap-1.5 px-3 py-1.5 text-xs lg:w-auto"
                     onClick={() => setBulkDeleteOpen(true)}
                     disabled={selectedIds.size === 0}
                   >
@@ -376,7 +376,7 @@ export default function Entities() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="w-full justify-center normal-case inline-flex items-center gap-1.5 px-3 py-1.5 text-xs md:w-auto"
+                    className="w-full justify-center normal-case inline-flex items-center gap-1.5 px-3 py-1.5 text-xs lg:w-auto"
                     onClick={exitSelectMode}
                   >
                     <X className="h-3.5 w-3.5" /> {t("select_done")}
@@ -384,6 +384,7 @@ export default function Entities() {
                 </div>
               </div>
             )}
+            {selectMode && <div aria-hidden="true" className="h-[calc(9rem+env(safe-area-inset-top))] lg:hidden" />}
 
             {/* Listagem Contínua */}
 
@@ -417,17 +418,6 @@ export default function Entities() {
                         selectMode ? toggleSelect(entity.id) : navigate(`/entities/${entity.id}`)
                       }
                     >
-                      {selectMode && (
-                        <span
-                          className={cn(
-                            "mt-1 grid h-5 w-5 shrink-0 place-items-center rounded-sm border transition-colors",
-                            selected ? "border-border/10 bg-foreground text-background" : "border-border/30 text-transparent"
-                          )}
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                        </span>
-                      )}
-
                       <ListRowContent
                         icon={<EntityTypeIcon type={entity.type} className="h-5 w-5" />}
                         title={entity.title || t("notes_untitled")}
@@ -442,48 +432,59 @@ export default function Entities() {
                       />
 
 
-                      {!selectMode && (
-                        <div className="flex shrink-0 items-center gap-2 pt-1">
-                          <span className="flex h-5 w-5 items-center justify-center">
-                            <InsightSignalBadge kind="entity" id={entity.id} className="h-5 w-5" />
+                      <div className="flex w-[76px] shrink-0 items-center justify-end gap-2 pt-1">
+                        {selectMode ? (
+                          <span
+                            className={cn(
+                              "grid h-5 w-5 place-items-center rounded-sm border transition-colors",
+                              selected ? "border-border/10 bg-foreground text-background" : "border-border/30 text-transparent"
+                            )}
+                          >
+                            <Check className="h-3.5 w-3.5" />
                           </span>
-                          <span className="flex h-5 w-5 items-center justify-center">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="iconSm"
-                              className={cn(
-                                "h-5 w-5 rounded-full p-0 opacity-70 transition-colors hover:opacity-100",
-                                entity.favorite ? "text-foreground" : "text-foreground"
-                              )}
-                              onClick={(e) => void toggleFavorite(entity, e)}
-                              aria-label={entity.favorite ? t("notes_unfavorite") : t("notes_favorite")}
-                            >
-                              {entity.favorite ? (
-                                <BookmarkCheck className="h-3 w-3 fill-current" />
-                              ) : (
-                                <Bookmark className="h-3 w-3" />
-                              )}
-                            </Button>
-                          </span>
-                          <span className="flex h-5 w-5 items-center justify-center">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="iconSm"
-                              className="h-5 w-5 rounded-full p-0 text-foreground opacity-70 transition hover:opacity-100"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                handleDelete(e, entity);
-                              }}
-                              aria-label={t("common_delete")}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </span>
-                        </div>
-                      )}
+                        ) : (
+                          <>
+                            <span className="flex h-5 w-5 items-center justify-center">
+                              <InsightSignalBadge kind="entity" id={entity.id} className="h-5 w-5" />
+                            </span>
+                            <span className="flex h-5 w-5 items-center justify-center">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="iconSm"
+                                className={cn(
+                                  "h-5 w-5 rounded-full p-0 opacity-70 transition-colors hover:opacity-100",
+                                  entity.favorite ? "text-foreground" : "text-foreground"
+                                )}
+                                onClick={(e) => void toggleFavorite(entity, e)}
+                                aria-label={entity.favorite ? t("notes_unfavorite") : t("notes_favorite")}
+                              >
+                                {entity.favorite ? (
+                                  <BookmarkCheck className="h-3 w-3 fill-current" />
+                                ) : (
+                                  <Bookmark className="h-3 w-3" />
+                                )}
+                              </Button>
+                            </span>
+                            <span className="flex h-5 w-5 items-center justify-center">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="iconSm"
+                                className="h-5 w-5 rounded-full p-0 text-foreground opacity-70 transition hover:opacity-100"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  handleDelete(e, entity);
+                                }}
+                                aria-label={t("common_delete")}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </EntityRow>
                   );
                 })}

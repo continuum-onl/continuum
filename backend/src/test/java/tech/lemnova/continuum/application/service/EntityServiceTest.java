@@ -21,6 +21,7 @@ import onl.continuum.continuum.infra.persistence.NoteRepository;
 import onl.continuum.continuum.infra.security.CustomUserDetails;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -124,6 +125,25 @@ class EntityServiceTest {
     }
 
     @Test
+    @DisplayName("togglePinned: toggles pin independently from favorite")
+    void togglePinned_togglesAndSavesEntity() {
+        Entity entity = new Entity();
+        entity.setId("e1");
+        entity.setUserId("user1");
+        entity.setVaultId("vault1");
+        entity.setFavorite(true);
+
+        when(entityRepo.findById("e1")).thenReturn(Optional.of(entity));
+        when(entityRepo.save(any(Entity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Entity result = entityService.togglePinned("e1");
+
+        assertThat(result.isPinned()).isTrue();
+        assertThat(result.isFavorite()).isTrue();
+        verify(entityRepo).save(entity);
+    }
+
+    @Test
     @DisplayName("getNotesForEntity: retrieves all notes linked to entity")
     void getNotesForEntity_returnsNotes() {
         String userId = "user1";
@@ -195,6 +215,33 @@ class EntityServiceTest {
 
         assertThat(result.getTrackingDates()).contains(java.time.LocalDate.now());
         verify(entityRepo, times(1)).save(activity);
+    }
+
+    @Test
+    @DisplayName("untrackActivity: removes only the selected date from an owned activity")
+    void untrackActivity_removesSelectedDate() {
+        String userId = "user1";
+        String entityId = "e1";
+        LocalDate keptDate = LocalDate.of(2026, 10, 17);
+        LocalDate removedDate = LocalDate.of(2026, 10, 18);
+        User user = new User();
+        user.setId(userId);
+        user.setVaultId("vault1");
+        when(userRepo.findById(userId)).thenReturn(Optional.of(user));
+
+        Entity activity = new Entity();
+        activity.setId(entityId);
+        activity.setUserId(userId);
+        activity.setVaultId("vault1");
+        activity.setType(EntityType.ACTIVITY);
+        activity.setTrackingDates(List.of(keptDate, removedDate));
+        when(entityRepo.findById(entityId)).thenReturn(Optional.of(activity));
+        when(entityRepo.save(any(Entity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Entity result = entityService.untrackActivity(userId, entityId, removedDate);
+
+        assertThat(result.getTrackingDates()).containsExactly(keptDate);
+        verify(entityRepo).save(activity);
     }
 
     @Test

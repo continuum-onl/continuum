@@ -169,6 +169,19 @@ public class TimeTrackingController {
     }
 
     /**
+     * Update a time entry's duration
+     * PATCH /api/time-tracking/:entryId
+     */
+    @PatchMapping("/{entryId}")
+    public ResponseEntity<TimeEntryResponse> updateTimeEntry(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable String entryId,
+            @RequestBody Map<String, Long> body) {
+        return ResponseEntity.ok(timeTrackingService.updateTimeEntryDuration(
+                user.getUserId(), entryId, body.get("durationSeconds")));
+    }
+
+    /**
      * Recover interrupted timer session
      * POST /api/time-tracking/:entityId/recover
      */

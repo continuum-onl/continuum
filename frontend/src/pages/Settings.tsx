@@ -126,7 +126,7 @@ export default function SettingsPage() {
   const qc = useQueryClient();
   const { data: del } = useDeletionStatus();
 
-  const [exporting, setExporting] = useState(false);
+  const [exportingZip, setExportingZip] = useState(false);
   const [relinking, setRelinking] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
@@ -141,16 +141,16 @@ export default function SettingsPage() {
 
   /* Handlers */
 
-  const handleExportData = async () => {
-    if (exporting) return;
-    setExporting(true);
+  const handleExportBackup = async () => {
+    if (exportingZip) return;
+    setExportingZip(true);
     try {
-      const res = await authApi.exportData();
-      const json = typeof res.data === "string" ? res.data : JSON.stringify(res.data, null, 2);
-      const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
+      const res = await authApi.exportVaultZip();
+      const blob = res.data;
+      const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = "continuum-backup.json";
+      anchor.download = "continuum-vault.zip";
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
@@ -159,7 +159,7 @@ export default function SettingsPage() {
     } catch (error: any) {
       toast({ title: t("profile_backupFailed"), description: error?.message ?? t("common_tryAgain"), variant: "destructive" });
     } finally {
-      setExporting(false);
+      setExportingZip(false);
     }
   };
 
@@ -275,10 +275,10 @@ export default function SettingsPage() {
           <ActionRow icon={ArrowUpTrayIcon} label={t("profile_importMd")} description={t("profile_importMdDesc")} onClick={() => setImportOpen(true)} />
           <ActionRow
             icon={ArrowDownTrayIcon}
-            label={t("profile_exportData")}
-            description={user?.dataExport ? "continuum-backup.json" : t("profile_locked")}
-            onClick={handleExportData}
-            disabled={exporting || !user?.dataExport}
+            label={exportingZip ? t("ms_dash_exportingLabel") : t("profile_exportData")}
+            description={user?.dataExport ? "Markdown · JSON · Vault" : t("profile_locked")}
+            onClick={() => void handleExportBackup()}
+            disabled={exportingZip || !user?.dataExport}
           />
           <ActionRow icon={LinkIcon} label={t("import_relinkBtn")} description={t("profile_relinkDesc")} onClick={handleRelinkEntities} disabled={relinking} />
           <ActionRow icon={TrashIcon} label={t("nav_trash")} description={t("nav_trash_desc")} href="/trash" />

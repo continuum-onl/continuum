@@ -49,7 +49,7 @@ export default function UpgradeModal({ open, onOpenChange, reason }: UpgradeModa
             </DialogDescription>
           </DialogHeader>
 
-          <div className="mt-2 space-y-4 rounded-sm border border-border/15 bg-foreground/[0.02] p-5">
+          <div className="mt-2 space-y-4 rounded-xl border border-border/15 bg-foreground/[0.02] p-5">
             <div>
               <p className="text-[10px] uppercase tracking-[0.32em] text-muted-foreground">Vision</p>
               <p className="mt-1 font-serif text-3xl text-foreground">
@@ -70,7 +70,7 @@ export default function UpgradeModal({ open, onOpenChange, reason }: UpgradeModa
             </ul>
             <button
               onClick={handleCheckout}
-              className="flex w-full items-center justify-center gap-2 rounded-sm border border-border/10 bg-foreground px-4 py-2 text-[11px] uppercase tracking-[0.22em] text-background transition-colors hover:bg-foreground/90"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-border/10 bg-foreground px-4 py-2 text-[11px] uppercase tracking-[0.22em] text-background transition-colors hover:bg-foreground/90"
             >
               {t("bill_upgrade_to_vision")}
             </button>

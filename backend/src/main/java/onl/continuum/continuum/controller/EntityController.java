@@ -144,6 +144,15 @@ public class EntityController {
         return ResponseEntity.ok(EntityResponse.from(entity, historyDaysFor(user)));
     }
 
+    @PatchMapping("/{id}/pin")
+    @Operation(summary = "Toggle pinned status", description = "Toggles the pinned flag for an entity and persists it")
+    public ResponseEntity<EntityResponse> togglePinned(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable String id) {
+        Entity entity = entityService.togglePinned(id);
+        return ResponseEntity.ok(EntityResponse.from(entity, historyDaysFor(user)));
+    }
+
     @PostMapping("/{id}/track-activity")
     @Operation(summary = "Track activity occurrence", description = "Records a tracking event for an activity entity on the current date")
     public ResponseEntity<EntityResponse> trackActivity(
@@ -151,6 +160,16 @@ public class EntityController {
             @PathVariable String id,
             @RequestParam(required = false) java.time.LocalDate date) {
         Entity entity = entityService.trackActivity(user.getUserId(), id, date);
+        return ResponseEntity.ok(EntityResponse.from(entity, historyDaysFor(user)));
+    }
+
+    @DeleteMapping("/{id}/track-activity")
+    @Operation(summary = "Untrack activity occurrence", description = "Removes a tracked activity occurrence for the specified date")
+    public ResponseEntity<EntityResponse> untrackActivity(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable String id,
+            @RequestParam LocalDate date) {
+        Entity entity = entityService.untrackActivity(user.getUserId(), id, date);
         return ResponseEntity.ok(EntityResponse.from(entity, historyDaysFor(user)));
     }
 }

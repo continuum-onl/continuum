@@ -35,4 +35,20 @@ describe("SmoothDrawer snap behavior", () => {
     render(<SmoothDrawer open onOpenChange={vi.fn()} title="Filters">Filters</SmoothDrawer>);
     expect(screen.getByTestId("drawer")).not.toHaveAttribute("data-points");
   });
+
+  it("expands from an upward swipe on the content when enabled", () => {
+    render(
+      <SmoothDrawer expandable dragFromContent open onOpenChange={vi.fn()} title="Node details">
+        Details
+      </SmoothDrawer>,
+    );
+    const content = screen.getByText("Details");
+    const start = new Event("touchstart", { bubbles: true });
+    Object.defineProperty(start, "touches", { value: [{ clientY: 100 }] });
+    fireEvent(content, start);
+    const move = new Event("touchmove", { bubbles: true, cancelable: true });
+    Object.defineProperty(move, "touches", { value: [{ clientY: 80 }] });
+    fireEvent(content, move);
+    expect(screen.getByTestId("drawer")).toHaveAttribute("data-snap", "0.92");
+  });
 });

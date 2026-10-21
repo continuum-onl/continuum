@@ -52,7 +52,7 @@ export default function HeroSection() {
               {...fadeUp(0.2)}
               className="font-display text-[clamp(2.75rem,6vw,5rem)] font-bold leading-[1.05] tracking-[-0.025em] text-white mb-6"
             >
-              Your second brain,
+              Your personal journal,
               <br />
               <em className="not-italic text-[#888888] italic">without the friction.</em>
             </motion.h1>
@@ -62,7 +62,7 @@ export default function HeroSection() {
               {...fadeUp(0.3)}
               className="font-body text-[1.0625rem] leading-[1.75] text-[#888888] mb-10 max-w-md"
             >
-              Continuum gives you linked thinking, native sync across devices, and intelligent resurfacing — all in a clean, mobile-first experience with zero folders to manage.
+              Capture your days, thoughts and memories in a personal journal with connected entries and native sync across devices.
             </motion.p>
 
             {/* CTAs */}

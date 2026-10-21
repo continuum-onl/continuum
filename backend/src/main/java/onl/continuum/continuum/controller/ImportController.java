@@ -36,17 +36,24 @@ public class ImportController {
     }
 
     @PostMapping(value = "/markdown/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Preview a Markdown import", description = "Parses .md files, returns Tiptap content and detected entity candidates without persisting.")
-    public ResponseEntity<ImportPreviewResponse> preview(@RequestParam("files") MultipartFile[] files) throws Exception {
+    @Operation(summary = "Preview a Markdown import", description = "Parses .md files, returns Tiptap content, detected entities, local asset references, and source timestamps without persisting.")
+    public ResponseEntity<ImportPreviewResponse> preview(
+            @RequestParam("files") MultipartFile[] files,
+            @RequestParam(value = "paths", required = false) List<String> paths,
+            @RequestParam(value = "lastModified", required = false) List<Long> lastModified
+    ) throws Exception {
         if (files == null || files.length == 0) {
             return ResponseEntity.badRequest().build();
         }
         long total = 0;
         List<ParsedUpload> uploads = new ArrayList<>();
-        for (MultipartFile f : files) {
+        for (int i = 0; i < files.length; i++) {
+            MultipartFile f = files[i];
             if (uploads.size() >= MAX_FILES) break;
             if (f == null || f.isEmpty()) continue;
-            String name = f.getOriginalFilename() == null ? "untitled.md" : f.getOriginalFilename();
+            String name = paths != null && i < paths.size() && paths.get(i) != null && !paths.get(i).isBlank()
+                    ? paths.get(i)
+                    : f.getOriginalFilename() == null ? "untitled.md" : f.getOriginalFilename();
             // Strip directory path to compare just the basename.
             int slash = Math.max(name.lastIndexOf('/'), name.lastIndexOf('\\'));
             String base = slash >= 0 ? name.substring(slash + 1) : name;
@@ -60,7 +67,8 @@ public class ImportController {
             if (!isTextUtf8(bytes)) continue;
             total += f.getSize();
             if (total > MAX_TOTAL_BYTES) break;
-            uploads.add(new ParsedUpload(name, new String(bytes, StandardCharsets.UTF_8)));
+            Long modifiedAt = lastModified != null && i < lastModified.size() ? lastModified.get(i) : null;
+            uploads.add(new ParsedUpload(name, new String(bytes, StandardCharsets.UTF_8), modifiedAt));
         }
         return ResponseEntity.ok(orchestrator.preview(uploads));
     }

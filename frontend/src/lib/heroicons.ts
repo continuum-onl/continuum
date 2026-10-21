@@ -84,6 +84,7 @@ import {
   EyeSlashIcon,
 } from "@heroicons/react/24/outline";
 import { BookmarkIcon as BookmarkSolidIcon } from "@heroicons/react/24/solid";
+import PinIcon from "lucide-react/dist/esm/icons/pin.js";
 
 export type LucideIcon = ComponentType<SVGProps<SVGSVGElement>>;
 
@@ -193,6 +194,7 @@ export {
   MagnifyingGlassMinusIcon as ZoomOut,
   EyeIcon as Eye,
   EyeSlashIcon as EyeOff,
+  PinIcon as Pin,
   ShareIcon as Share2,
   CloudIcon as Cloud,
   SignalSlashIcon as CloudOff,

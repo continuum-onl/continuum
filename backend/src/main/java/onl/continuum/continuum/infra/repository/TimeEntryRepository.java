@@ -24,8 +24,9 @@ public interface TimeEntryRepository extends MongoRepository<TimeEntry, String> 
     List<TimeEntry> findByUserIdAndDateOrderByCreatedAtDesc(String userId, LocalDate date);
 
     /**
-     * Find entries in a date range
+     * Find active entries in an inclusive date range, including a single selected day.
      */
+    @Query("{ 'userId': ?0, 'entityId': ?1, 'archivedAt': null, 'date': { $gte: ?2, $lte: ?3 } }")
     List<TimeEntry> findByUserIdAndEntityIdAndDateBetweenOrderByDateDesc(
             String userId, String entityId, LocalDate startDate, LocalDate endDate);
 

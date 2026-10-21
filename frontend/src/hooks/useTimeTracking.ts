@@ -391,6 +391,12 @@ export const useTimeTracking = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['timeTracking'] }),
   });
 
+  const updateEntryMutation = useMutation({
+    mutationFn: (data: { entryId: string; durationSeconds: number }) =>
+      timeTrackingApi.updateEntry(data.entryId, data.durationSeconds),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['timeTracking'] }),
+  });
+
   const formatSeconds = useCallback((seconds: number): string => {
     const s = Math.max(0, Math.floor(seconds));
     const h = Math.floor(s / 3600);
@@ -412,6 +418,8 @@ export const useTimeTracking = () => {
     addTime: addTimeMutation.mutate,
     addTimeAsync: addTimeMutation.mutateAsync,
     deleteEntry: deleteEntryMutation.mutate,
+    deleteEntryAsync: deleteEntryMutation.mutateAsync,
+    updateEntry: updateEntryMutation.mutateAsync,
 
     activeTimers,
     isTimerActive: (entityId: string) => snapshot.has(entityId),

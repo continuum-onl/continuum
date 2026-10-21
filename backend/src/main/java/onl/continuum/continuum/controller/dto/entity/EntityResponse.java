@@ -15,6 +15,7 @@ public record EntityResponse(
     EntityType type,
     String description,
     boolean favorite,
+    boolean pinned,
     Instant createdAt,
     List<LocalDate> trackingDates
 ) {
@@ -46,6 +47,7 @@ public record EntityResponse(
             entity.getType(),
             entity.getDescription(),
             entity.isFavorite(),
+            entity.isPinned(),
             entity.getCreatedAt(),
             dates
         );

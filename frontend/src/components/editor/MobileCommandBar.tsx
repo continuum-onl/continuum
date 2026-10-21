@@ -1,3 +1,4 @@
+import { readKeyboard } from "@/lib/keyboard-viewport";
 import { useEffect, useState, useCallback, useRef } from "react";
 import type { PointerEvent } from "react";
 import type { Editor } from "@tiptap/core";
@@ -131,11 +132,9 @@ export function MobileCommandBar({ editor }: Props) {
         setOffset(0);
         return;
       }
-      const kbHeight = window.innerHeight - vv.height - vv.offsetTop;
-      // Consider keyboard "open" when at least 120px is occluded.
-      const open = kbHeight > 120;
+      const { open, offset: kb } = readKeyboard();
       setKbOpen(open);
-      setOffset(open ? kbHeight : 0);
+      setOffset(kb);
     };
     update();
     vv?.addEventListener("resize", update);

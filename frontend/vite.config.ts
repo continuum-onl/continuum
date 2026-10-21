@@ -88,10 +88,10 @@ export default defineConfig(({ mode }) => {
       mode === "development" && componentTagger(),
     ].filter(Boolean),
     resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-      "lucide-react": path.resolve(__dirname, "./src/lib/heroicons.ts"),
-    },
+    alias: [
+      { find: "@", replacement: path.resolve(__dirname, "./src") },
+      { find: /^lucide-react$/, replacement: path.resolve(__dirname, "./src/lib/heroicons.ts") },
+    ],
     dedupe: [
       "react",
       "react-dom",

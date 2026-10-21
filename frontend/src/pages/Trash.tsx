@@ -57,15 +57,15 @@ export default function Trash() {
   };
   return (
     <AppLayout>
-      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-12 lg:py-16">
-        <header className="mb-8 flex items-end justify-between gap-4 border-b border-white/5 pb-4">
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-12 lg:py-16">
+        <header className="mb-8 flex items-end justify-between gap-4 border-b border-border/10 pb-4">
           <div className="min-w-0">
             <p className="text-[10px] uppercase tracking-[0.32em] text-muted-foreground">{s.eyebrow}</p>
             <h1 className="mt-2 font-serif text-4xl tracking-tight text-foreground sm:text-5xl">{s.title}</h1>
             <p className="mt-2 text-sm text-muted-foreground">{s.sub}</p>
           </div>
           {!!items.length && (
-            <Button variant="outline" size="sm" onClick={() => setEmptyOpen(true)} className="shrink-0 rounded-sm border-white/10 bg-white/[0.03] text-white/60 hover:bg-white/[0.06] hover:text-red-300">
+            <Button variant="outline" size="sm" onClick={() => setEmptyOpen(true)} className="shrink-0 rounded-xl border-border/10 bg-foreground/[0.03] text-foreground/80 hover:bg-foreground/[0.03] hover:text-red-300">
               <TrashIcon className="mr-2 h-4 w-4" />{s.emptyTrash}
             </Button>
           )}
@@ -94,32 +94,32 @@ export default function Trash() {
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center py-24"><Loader2 className="h-5 w-5 animate-spin text-white/30" /></div>
+          <div className="flex justify-center py-24"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
         ) : filteredItems.length === 0 ? (
-          <p className="py-16 text-center font-serif text-lg italic text-white/40">
+          <p className="py-16 text-center font-serif text-lg italic text-muted-foreground">
             {items.length === 0 ? s.empty : s.noResults}
           </p>
         ) : (
-          <ul className="divide-y divide-white/[0.06]">
+          <ul className="divide-y divide-border/10">
             {filteredItems.map((item) => {
               const category = categoryOf(item.kind);
               const ItemIcon = category === "notes" ? DocumentTextIcon : category === "entities" ? TagIcon : PaperClipIcon;
               const kindLabel = category === "notes" ? s.note : category === "entities" ? s.entity : s.file;
               const days = Math.max(0, Math.ceil((new Date(item.expiresAt).getTime() - Date.now()) / 864e5));
               return (
-                <li key={item.id} className="group flex flex-wrap items-center gap-x-3 gap-y-3 py-4 transition-colors hover:bg-white/[0.01] sm:gap-x-4">
-                  <ItemIcon className="h-4 w-4 shrink-0 text-white/30" />
+                <li key={item.id} className="group flex flex-wrap items-center gap-x-3 gap-y-3 py-4 transition-colors hover:bg-foreground/[0.03] sm:gap-x-4">
+                  <ItemIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-serif text-sm text-white/80 transition-colors group-hover:text-white">{item.title || "—"}</p>
-                    <p className="mt-0.5 text-[10px] font-mono text-white/35">
+                    <p className="truncate font-serif text-sm text-foreground/80 transition-colors group-hover:text-white">{item.title || "—"}</p>
+                    <p className="mt-0.5 text-[10px] font-mono text-muted-foreground">
                       {kindLabel}{item.subtype ? ` · ${item.subtype}` : ""} · {s.left.replace("{n}", String(days))}
                     </p>
                   </div>
                   <div className="flex w-full shrink-0 items-center justify-end gap-1 sm:w-auto">
-                    <Button size="sm" variant="ghost" className="h-8 rounded-sm text-white/50 hover:bg-white/5 hover:text-white" onClick={() => act(() => trashApi.restore(item.id), s.ok)}>
+                    <Button size="sm" variant="ghost" className="h-8 rounded-xl text-foreground/80 hover:bg-foreground/[0.04] hover:text-white" onClick={() => act(() => trashApi.restore(item.id), s.ok)}>
                       <ArrowUturnLeftIcon className="mr-1.5 h-3.5 w-3.5" />{s.restore}
                     </Button>
-                    <Button size="sm" variant="ghost" className="h-8 rounded-sm text-white/40 hover:bg-white/5 hover:text-red-300" onClick={() => act(() => trashApi.purge(item.id))}>
+                    <Button size="sm" variant="ghost" className="h-8 rounded-xl text-muted-foreground hover:bg-foreground/[0.04] hover:text-red-300" onClick={() => act(() => trashApi.purge(item.id))}>
                       <TrashIcon className="mr-1.5 h-3.5 w-3.5" />{s.del}
                     </Button>
                   </div>

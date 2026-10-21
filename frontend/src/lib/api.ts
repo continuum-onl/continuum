@@ -522,12 +522,13 @@ export const entitiesApi = {
     api.put(`/api/entities/${id}`, data),
   delete: (id: string) => api.delete(`/api/entities/${id}`),
   toggleFavorite: (id: string) => api.patch(`/api/entities/${id}/favorite`),
+  togglePinned: (id: string) => api.patch(`/api/entities/${id}/pin`),
   getNotes: (id: string) => api.get(`/api/entities/${id}/notes`),
   getConnections: (id: string) => api.get(`/api/entities/${id}/connections`),
   getContext: (id: string) => api.get(`/api/entities/${id}/context`),
   track: (entityId: string, date?: string) => api.post(`/api/entities/${entityId}/track-activity`, null, date ? { params: { date } } : undefined),
   untrack: (entityId: string, date: string) =>
-    api.delete(`/api/entities/${entityId}/track`, { params: { date } }),
+    api.delete(`/api/entities/${entityId}/track-activity`, { params: { date } }),
   stats: (entityId: string) => api.get(`/api/entities/${entityId}/stats`),
   heatmap: (entityId: string, from?: string, to?: string) =>
     api.get(`/api/entities/${entityId}/heatmap`, { params: { from, to } }),
@@ -624,6 +625,8 @@ export const timeTrackingApi = {
   getAllInRange: (from: string, to: string) =>
     api.get("/api/time-tracking/all/range", { params: { from, to } }),
   deleteEntry: (entryId: string) => api.delete(`/api/time-tracking/${entryId}`),
+  updateEntry: (entryId: string, durationSeconds: number) =>
+    api.patch(`/api/time-tracking/${entryId}`, { durationSeconds }),
   recoverSession: (entityId: string) => api.post(`/api/time-tracking/${entityId}/recover`),
 };
 
@@ -638,7 +641,12 @@ export const insightsApi = {
 export const importApi = {
   previewMarkdown: (files: File[]) => {
     const form = new FormData();
-    files.forEach((f) => form.append("files", f, f.name));
+    files.forEach((f) => {
+      const path = (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name;
+      form.append("files", f, path);
+      form.append("paths", path);
+      form.append("lastModified", String(f.lastModified));
+    });
 
     return api.post("/api/import/markdown/preview", form, {
       headers: { "Content-Type": "multipart/form-data" },

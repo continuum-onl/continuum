@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePlanGate } from "@/hooks/usePlanGate";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { Entity } from "@/types";
+import { MAX_ENTITY_DESCRIPTION_LENGTH } from "@/lib/entity-description";
 
 function getTypeOptions(t: (key: string, vars?: Record<string, unknown>) => string): { value: string; label: string; hint: string }[] {
   return [
@@ -136,12 +138,17 @@ export function CreateEntityDialog({ open, onOpenChange, defaultType = "TOPIC", 
 
           <div className="space-y-1.5">
             <Label className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{t("ent_description_optional")}</Label>
-            <Input
+            <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder={t("ent_a_short_note")}
-              className="h-11 bg-foreground/[0.03] border-border/10 focus-visible:ring-ring"
+              maxLength={MAX_ENTITY_DESCRIPTION_LENGTH}
+              className="bg-foreground/[0.03] border-border/10 focus-visible:ring-ring"
+              rows={3}
             />
+            <p className="text-right text-[10px] text-muted-foreground">
+              {t("ent_description_character_count", { count: description.length })}
+            </p>
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-2">

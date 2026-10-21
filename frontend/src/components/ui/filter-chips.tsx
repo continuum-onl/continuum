@@ -33,7 +33,7 @@ export function FilterChips({ options, value, onChange, className }: FilterChips
             type="button"
             onClick={() => onChange(opt.value)}
             className={cn(
-              "shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-[13px] transition-colors",
+              "inline-flex h-9 shrink-0 items-center whitespace-nowrap rounded-full px-4 text-[13px] transition-colors",
               active
                 ? "bg-accent text-primary ring-1 ring-primary/60"
                 : "bg-accent/60 text-muted-foreground",

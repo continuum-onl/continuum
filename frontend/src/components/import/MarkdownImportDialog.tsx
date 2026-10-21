@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { importApi } from "@/lib/api";
+import { importApi, vaultApi } from "@/lib/api";
 import { ArrowPathIcon, ArrowUpTrayIcon, CheckCircleIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 
 type Step = "upload" | "review" | "result";
@@ -16,6 +16,8 @@ interface PreviewFile {
   content: unknown;
   candidateKeys: string[];
   wordCount: number;
+  assetReferences: string[];
+  lastModified: number | null;
 }
 interface PreviewCandidate {
   key: string;
@@ -42,6 +44,7 @@ interface CommitResponse {
 const TYPES: EntityType[] = ["PERSON", "PROJECT", "TOPIC", "ORGANIZATION", "ACTIVITY"];
 const BLOCKED_EXTENSION_BEFORE_MD = /\.(png|jpe?g|gif|webp|svg|bmp|tiff?|heic|mp3|wav|m4a|ogg|opus|flac|aac|mp4|mov|webm|avi|mkv|pdf|docx?|xlsx?|pptx?|csv|tsv|zip|rar|7z|tar|gz|exe|dmg|apk|html?|css|js|ts|tsx|jsx|json|xml|yaml|yml)$/i;
 const BINARY_MIME = /^(audio|video|image)\//i;
+const SUPPORTED_VAULT_FILE = /\.(jpe?g|png|webp|pdf|mp3|m4a)$/i;
 
 /* Shared visual tokens — same rounded language used by the other drawers. */
 const fieldClass =
@@ -70,6 +73,42 @@ const isStrictMarkdownFile = (file: File) => {
   if (BLOCKED_EXTENSION_BEFORE_MD.test(stem)) return false;
   if (file.type && BINARY_MIME.test(file.type)) return false;
   return true;
+};
+
+const isSupportedVaultFile = (file: File) => SUPPORTED_VAULT_FILE.test(file.name);
+
+const normalizeRelativePath = (path: string) => {
+  const segments: string[] = [];
+  for (const segment of path.replace(/\\/g, "/").split("/")) {
+    if (!segment || segment === ".") continue;
+    if (segment === "..") segments.pop();
+    else segments.push(segment);
+  }
+  return segments.join("/");
+};
+
+const assetMatchKey = (path: string) =>
+  normalizeRelativePath(path).normalize("NFC").toLowerCase();
+
+const resolveAssetFile = (notePath: string, reference: string, files: File[]) => {
+  let decodedReference: string;
+  try {
+    decodedReference = decodeURIComponent(reference);
+  } catch {
+    return null;
+  }
+  const path = decodedReference.split(/[?#]/, 1)[0];
+  if (!path || path.startsWith("/") || /^[a-z][a-z0-9+.-]*:/i.test(path)) return null;
+
+  const noteDirectory = notePath.replace(/\\/g, "/").split("/").slice(0, -1).join("/");
+  const expected = normalizeRelativePath(`${noteDirectory}/${path}`);
+  const exactMatches = files.filter((file) => assetMatchKey(uploadPath(file)) === assetMatchKey(expected));
+  if (exactMatches.length === 1) return exactMatches[0];
+  if (exactMatches.length > 1) return null;
+
+  const basename = path.split("/").pop();
+  const basenameMatches = files.filter((file) => assetMatchKey(file.name) === assetMatchKey(basename ?? ""));
+  return basenameMatches.length === 1 ? basenameMatches[0] : null;
 };
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -112,6 +151,7 @@ export default function MarkdownImportDialog({ open, onOpenChange, onImported }:
   const [dragging, setDragging] = useState(false);
   const [progress, setProgress] = useState(0);
   const [preview, setPreview] = useState<PreviewResponse | null>(null);
+  const [assetFiles, setAssetFiles] = useState<File[]>([]);
   const [decisions, setDecisions] = useState<Record<string, { accept: boolean; type: EntityType; name: string }>>({});
   const [result, setResult] = useState<CommitResponse | null>(null);
   const [customEntities, setCustomEntities] = useState<{ name: string; type: EntityType; matches: number }[]>([]);
@@ -121,6 +161,7 @@ export default function MarkdownImportDialog({ open, onOpenChange, onImported }:
   const reset = useCallback(() => {
     setStep("upload");
     setPreview(null);
+    setAssetFiles([]);
     setDecisions({});
     setResult(null);
     setProgress(0);
@@ -146,7 +187,8 @@ export default function MarkdownImportDialog({ open, onOpenChange, onImported }:
       await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
       const all = Array.from(fileList);
       const files = all.filter(isStrictMarkdownFile);
-      const skipped = all.length - files.length;
+      const assets = all.filter(isSupportedVaultFile);
+      const skipped = all.length - files.length - assets.length;
       if (files.length === 0) {
         toast({
           title: t("import_noMdTitle"),
@@ -157,6 +199,7 @@ export default function MarkdownImportDialog({ open, onOpenChange, onImported }:
         setProgress(0);
         return;
       }
+      setAssetFiles(assets);
       if (skipped > 0) {
         toast({
           title: t(skipped === 1 ? "import_skippedTitle_one" : "import_skippedTitle", { n: skipped }),
@@ -207,12 +250,34 @@ export default function MarkdownImportDialog({ open, onOpenChange, onImported }:
     setBusy(true);
     setProgress(20);
     try {
+      const referencedAssets = preview.files.flatMap((file) =>
+        (file.assetReferences ?? []).flatMap((reference) => {
+          const asset = resolveAssetFile(file.filename, reference, assetFiles);
+          return asset ? [{ asset }] : [];
+        })
+      );
+      const uniqueAssets = Array.from(new Set(referencedAssets.map(({ asset }) => asset)));
+      const uploadedAssets = new Map<File, { id: string }>();
+      for (let i = 0; i < uniqueAssets.length; i++) {
+        const form = new FormData();
+        const assetName = uniqueAssets[i].name.replace(/\\/g, "/").split("/").pop() || uniqueAssets[i].name;
+        form.append("file", uniqueAssets[i], assetName);
+        const response = await vaultApi.upload(form);
+        uploadedAssets.set(uniqueAssets[i], response.data as { id: string });
+        setProgress(25 + Math.round(((i + 1) / uniqueAssets.length) * 30));
+      }
       const payload = {
         files: preview.files.map((f) => ({
           filename: f.filename,
           title: f.title,
           content: f.content,
           candidateKeys: f.candidateKeys,
+          lastModified: f.lastModified,
+          assets: (f.assetReferences ?? []).flatMap((reference) => {
+            const asset = resolveAssetFile(f.filename, reference, assetFiles);
+            const uploaded = asset ? uploadedAssets.get(asset) : undefined;
+            return [{ reference, fileId: uploaded?.id ?? "" }];
+          }),
         })),
         entities: preview.candidates.map((c) => {
           const d = decisions[c.key];
@@ -240,7 +305,7 @@ export default function MarkdownImportDialog({ open, onOpenChange, onImported }:
     } finally {
       setBusy(false);
     }
-  }, [preview, decisions, customEntities, onImported, toast, t]);
+  }, [preview, assetFiles, decisions, customEntities, onImported, toast, t]);
 
   const handleRelink = useCallback(async () => {
     setBusy(true);
@@ -408,7 +473,7 @@ export default function MarkdownImportDialog({ open, onOpenChange, onImported }:
               <input
                 ref={bindFileInput}
                 type="file"
-                accept=".md"
+                accept=".md,.jpg,.jpeg,.png,.webp,.pdf,.mp3,.m4a"
                 multiple
                 className="hidden"
                 onChange={(e) => {
@@ -423,7 +488,7 @@ export default function MarkdownImportDialog({ open, onOpenChange, onImported }:
                 /* @ts-expect-error non-standard */
                 webkitdirectory=""
                 directory=""
-                accept=".md"
+                accept=".md,.jpg,.jpeg,.png,.webp,.pdf,.mp3,.m4a"
                 multiple
                 className="hidden"
                 onChange={(e) => {

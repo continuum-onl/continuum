@@ -173,6 +173,12 @@ public class EntityService {
         entity.setFavorite(!entity.isFavorite());
         return entityRepo.save(entity);
     }
+
+    public Entity togglePinned(String entityId) {
+        Entity entity = validateOwnership(getCurrentUserId(), getCurrentVaultId(), entityId);
+        entity.setPinned(!entity.isPinned());
+        return entityRepo.save(entity);
+    }
     
     /**
      * @deprecated Use getEntity(userId, vaultId, entityId) para validações mais robustas
@@ -335,6 +341,10 @@ public class EntityService {
         return trackActivity(userId, entityId, null);
     }
 
+    @Caching(evict = {
+        @CacheEvict(value = "insights:notes", allEntries = true),
+        @CacheEvict(value = "insights:entities", allEntries = true)
+    })
     public Entity trackActivity(String userId, String entityId, java.time.LocalDate requestedDate) {
         User user = getUser(userId);
         
@@ -352,13 +362,32 @@ public class EntityService {
             throw new BadRequestException("Cannot log a future date");
         }
         java.time.LocalDate today = requestedDate != null ? requestedDate : now;
-        if (entity.getTrackingDates() == null) {
-            entity.setTrackingDates(new java.util.ArrayList<>());
-        }
-        if (!entity.getTrackingDates().contains(today)) {
-            entity.getTrackingDates().add(today);
-        }
+        List<java.time.LocalDate> trackingDates = entity.getTrackingDates() == null
+                ? new java.util.ArrayList<>()
+                : new java.util.ArrayList<>(entity.getTrackingDates());
+        if (!trackingDates.contains(today)) trackingDates.add(today);
+        entity.setTrackingDates(trackingDates);
         
+        return entityRepo.save(entity);
+    }
+
+    @Caching(evict = {
+        @CacheEvict(value = "insights:notes", allEntries = true),
+        @CacheEvict(value = "insights:entities", allEntries = true)
+    })
+    public Entity untrackActivity(String userId, String entityId, java.time.LocalDate date) {
+        User user = getUser(userId);
+        Entity entity = validateOwnership(userId, user.getVaultId(), entityId);
+        if (!entity.isTrackable()) {
+            throw new BadRequestException("Entidade não é uma atividade. Tipo: " + entity.getType());
+        }
+        if (date == null) throw new BadRequestException("Tracking date is required");
+
+        List<java.time.LocalDate> trackingDates = entity.getTrackingDates() == null
+                ? new java.util.ArrayList<>()
+                : new java.util.ArrayList<>(entity.getTrackingDates());
+        trackingDates.removeIf(date::equals);
+        entity.setTrackingDates(trackingDates);
         return entityRepo.save(entity);
     }
 }

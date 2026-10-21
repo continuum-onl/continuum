@@ -97,7 +97,7 @@ public class MarkdownImportOrchestrator {
             parsed = pool.submit(() ->
                     files.parallelStream().map(up -> {
                         try {
-                            return new Parsed(up, markdownService.parse(up.filename(), up.content()), null);
+                            return new Parsed(up, markdownService.parseForCorpus(up.filename(), up.content()), null);
                         } catch (Exception ex) {
                             return new Parsed(up, null, ex);
                         }
@@ -110,6 +110,7 @@ public class MarkdownImportOrchestrator {
             pool.shutdown();
         }
 
+        List<Parsed> eligible = new ArrayList<>();
         for (Parsed p : parsed) {
             ParsedUpload up = p.upload();
             if (p.error() != null) {
@@ -141,33 +142,42 @@ public class MarkdownImportOrchestrator {
                     skipped.add(up.filename() + ": note already exists (" + pf.title() + ")");
                     continue;
                 }
-                previewFiles.add(new ImportPreviewResponse.PreviewFile(
-                        pf.filename(), pf.title(), pf.content(),
-                        new ArrayList<>(pf.candidateKeys()), pf.wordCount()
-                ));
-                for (MarkdownImportService.Candidate c : pf.candidates().values()) {
-                    aggregated.merge(c.key(),
-                            new ImportPreviewResponse.EntityCandidate(
-                                    c.key(), c.name(), c.suggestedType(), c.occurrences(),
-                                    existingByKey.containsKey(normalizeEntityKey(c.key())), c.confidence()
-                            ),
-                            (a, b) -> new ImportPreviewResponse.EntityCandidate(
-                                    a.key(), a.name(), a.suggestedType(),
-                                    a.occurrences() + b.occurrences(), a.existing(),
-                                    mergeConfidence(a.confidence(), b.confidence())
-                            ));
-                }
+                eligible.add(p);
             } catch (Exception e) {
                 log.warn("Failed to parse {}: {}", up.filename(), e.getMessage());
                 errors.add(up.filename() + ": " + e.getMessage());
             }
         }
-        // Only suggest entities that appear 2+ times across the import (or already exist).
-        aggregated.values().removeIf(c -> !c.existing() && c.occurrences() < 2);
+
+        List<MarkdownImportService.ParsedFile> rankedFiles = markdownService.scoreCorpus(
+                eligible.stream().map(Parsed::pf).toList());
+        for (int index = 0; index < eligible.size(); index++) {
+            Parsed p = eligible.get(index);
+            ParsedUpload up = p.upload();
+            MarkdownImportService.ParsedFile pf = rankedFiles.get(index);
+            previewFiles.add(new ImportPreviewResponse.PreviewFile(
+                    pf.filename(), pf.title(), pf.content(),
+                    new ArrayList<>(pf.candidateKeys()), pf.wordCount(),
+                    pf.assetReferences(), up.lastModified()
+            ));
+            for (MarkdownImportService.Candidate c : pf.candidates().values()) {
+                aggregated.merge(c.key(),
+                        new ImportPreviewResponse.EntityCandidate(
+                                c.key(), c.name(), c.suggestedType(), c.occurrences(),
+                                existingByKey.containsKey(normalizeEntityKey(c.key())), c.confidence()
+                        ),
+                        (a, b) -> new ImportPreviewResponse.EntityCandidate(
+                                a.key(), a.name(), a.suggestedType(),
+                                a.occurrences() + b.occurrences(), a.existing(),
+                                mergeConfidence(a.confidence(), b.confidence())
+                        ));
+            }
+        }
         java.util.Set<String> kept = aggregated.keySet();
         List<ImportPreviewResponse.PreviewFile> filteredFiles = previewFiles.stream()
                 .map(f -> new ImportPreviewResponse.PreviewFile(f.filename(), f.title(), f.content(),
-                        f.candidateKeys().stream().filter(kept::contains).toList(), f.wordCount()))
+                        f.candidateKeys().stream().filter(kept::contains).toList(), f.wordCount(),
+                        f.assetReferences(), f.lastModified()))
                 .toList();
         return new ImportPreviewResponse(new ArrayList<>(filteredFiles), new ArrayList<>(aggregated.values()), errors, skipped);
     }
@@ -297,6 +307,16 @@ public class MarkdownImportOrchestrator {
         int notesCreated = 0;
         int linksCreated = 0;
         long currentNoteCount = noteRepo.countByUserId(userId);
+        boolean hasImportedAssets = req.files().stream()
+                .filter(Objects::nonNull)
+                .anyMatch(file -> file.assets() != null && !file.assets().isEmpty());
+        Map<String, VaultStorageService.VaultFileDescriptor> vaultFilesById = hasImportedAssets
+                ? storageService.listFiles(vaultId).stream().collect(Collectors.toMap(
+                        VaultStorageService.VaultFileDescriptor::fileId,
+                        file -> file,
+                        (first, ignored) -> first
+                ))
+                : Map.of();
 
         for (ImportCommitRequest.CommitFile f : req.files()) {
             try {
@@ -313,6 +333,20 @@ public class MarkdownImportOrchestrator {
                     errors.add(f.filename() + ": empty content");
                     continue;
                 }
+                Map<String, VaultStorageService.VaultFileDescriptor> importedAssets = new HashMap<>();
+                if (f.assets() != null && !f.assets().isEmpty()) {
+                    for (ImportCommitRequest.ImportedAsset asset : f.assets()) {
+                        if (asset == null || asset.reference() == null) continue;
+                        VaultStorageService.VaultFileDescriptor descriptor = vaultFilesById.get(asset.fileId());
+                        if (descriptor == null) {
+                            errors.add(f.filename() + ": could not link attachment ("
+                                    + asset.reference() + "); include the referenced file with the Markdown note");
+                            continue;
+                        }
+                        importedAssets.put(asset.reference(), descriptor);
+                    }
+                }
+                content = resolveImportedAssets(content, importedAssets);
                 String safeTitle = safeTitle(f.title(), f.filename());
                 String titleKey = safeTitle.toLowerCase(Locale.ROOT).trim();
                 if (existingNoteTitles.contains(titleKey) || !committedTitles.add(titleKey)) {
@@ -383,7 +417,9 @@ public class MarkdownImportOrchestrator {
                 note.setFileKey(fileKey);
                 note.setEntityIds(entityIds);
                 note.setCreatedAt(Instant.now());
-                note.setUpdatedAt(Instant.now());
+                note.setUpdatedAt(f.lastModified() == null || f.lastModified() == 0
+                        ? Instant.now()
+                        : Instant.ofEpochMilli(f.lastModified()));
                 noteRepo.save(note);
                 storageService.cacheNoteContent(vaultId, noteId, contentStr);
 
@@ -557,7 +593,88 @@ public class MarkdownImportOrchestrator {
         throw new IllegalStateException("Authenticated user not found");
     }
 
-    public record ParsedUpload(String filename, String content) {}
+    public record ParsedUpload(String filename, String content, Long lastModified) {
+        public ParsedUpload(String filename, String content) {
+            this(filename, content, null);
+        }
+    }
+
+    private JsonNode resolveImportedAssets(
+            JsonNode node,
+            Map<String, VaultStorageService.VaultFileDescriptor> importedAssets
+    ) {
+        if (node == null || !node.isObject()) {
+            if (node != null && node.isArray()) {
+                ArrayNode resolved = jsonMapper.createArrayNode();
+                for (JsonNode child : node) resolved.add(resolveImportedAssets(child, importedAssets));
+                return resolved;
+            }
+            return node;
+        }
+        String type = node.path("type").asText();
+        if ("importAsset".equals(type)) {
+            JsonNode attrs = node.path("attrs");
+            String reference = attrs.path("src").asText("");
+            String alt = attrs.path("alt").asText("");
+            VaultStorageService.VaultFileDescriptor file = importedAssets.get(reference);
+            if (file == null) {
+                ObjectNode fallback = jsonMapper.createObjectNode();
+                fallback.put("type", "paragraph");
+                ArrayNode textContent = jsonMapper.createArrayNode();
+                ObjectNode text = jsonMapper.createObjectNode();
+                text.put("type", "text");
+                text.put("text", "[" + (alt.isBlank() ? reference : alt) + "]");
+                textContent.add(text);
+                fallback.set("content", textContent);
+                return fallback;
+            }
+            String fileName = file.fileName() == null ? "" : file.fileName();
+            String contentType = file.contentType() == null ? "" : file.contentType().toLowerCase(Locale.ROOT);
+            String lowerName = fileName.toLowerCase(Locale.ROOT);
+            ObjectNode media = jsonMapper.createObjectNode();
+            ObjectNode mediaAttrs = jsonMapper.createObjectNode();
+            mediaAttrs.put("vaultId", file.fileId());
+            if (contentType.startsWith("image/") || lowerName.matches(".*\\.(jpg|jpeg|png|webp)$")) {
+                media.put("type", "vaultImage");
+                mediaAttrs.put("alt", alt.isBlank() ? fileName : alt);
+            } else if (contentType.equals("application/pdf") || lowerName.endsWith(".pdf")) {
+                media.put("type", "vaultPdf");
+                mediaAttrs.put("fileName", fileName);
+            } else if (contentType.startsWith("audio/") || lowerName.matches(".*\\.(mp3|m4a)$")) {
+                media.put("type", "vaultAudio");
+                mediaAttrs.put("fileName", fileName);
+            } else {
+                return node.deepCopy();
+            }
+            media.set("attrs", mediaAttrs);
+            return media;
+        }
+
+        ObjectNode resolved = ((ObjectNode) node).deepCopy();
+        JsonNode marks = resolved.path("marks");
+        if (marks.isArray()) {
+            for (JsonNode mark : marks) {
+                if (!"link".equals(mark.path("type").asText())) continue;
+                JsonNode hrefNode = mark.path("attrs").path("href");
+                if (!hrefNode.isTextual()) continue;
+                VaultStorageService.VaultFileDescriptor file = importedAssets.get(hrefNode.asText());
+                if (file != null && mark.path("attrs").isObject()) {
+                    ((ObjectNode) mark.path("attrs")).put(
+                            "href", "/vault/download/" + java.net.URLEncoder.encode(
+                                    file.fileId(), java.nio.charset.StandardCharsets.UTF_8
+                            ).replace("+", "%20")
+                    );
+                }
+            }
+        }
+        JsonNode content = resolved.get("content");
+        if (content != null && content.isArray()) {
+            ArrayNode resolvedContent = jsonMapper.createArrayNode();
+            for (JsonNode child : content) resolvedContent.add(resolveImportedAssets(child, importedAssets));
+            resolved.set("content", resolvedContent);
+        }
+        return resolved;
+    }
 
     private JsonNode applyMentions(JsonNode doc, Map<String, Entity> mentionByName) {
         if (doc == null || !(doc instanceof ObjectNode)) return doc;

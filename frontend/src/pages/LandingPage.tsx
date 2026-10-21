@@ -13,10 +13,9 @@ import { ScrollGlobe } from "@/components/ui/landing-page";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "@/hooks/use-toast";
 import landingEditor from "@/assets/landing-editor.png";
-import landingGraph from "@/assets/landing-graph.jpg";
 import landingInsights from "@/assets/landing-insights.jpg";
 
-const SITE_URL = "https://continuum.onl/";
+const SITE_URL = "https://continuumnodes.lovable.app/";
 
 export default function LandingPage() {
   const [authOpen, setAuthOpen] = useState(false);
@@ -128,7 +127,7 @@ export default function LandingPage() {
         { title: t("lp_discover_f3_title"), description: t("lp_discover_f3_desc") },
       ],
       screenshots: [
-        { src: landingGraph, alt: t("lp_discover_shot1_alt"), caption: t("lp_discover_shot1_caption") },
+        { graphPreview: true, alt: t("lp_discover_shot1_alt"), caption: t("lp_discover_shot1_caption") },
       ],
     },
     {

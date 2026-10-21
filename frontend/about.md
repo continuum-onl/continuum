@@ -1,6 +1,6 @@
 # About Continuum
 
-Continuum is an open-source personal knowledge management system designed to help you capture, connect, and resurface what matters.
+Continuum is an open-source app to write about your days, connect your thoughts, and resurface what matters.
 
 ## What is Continuum?
 
@@ -35,7 +35,7 @@ When you use Continuum, your information moves through a simple, transparent arc
 
 ## Your data
 
-Your notes, entities, relationships, and activity data belong to you. Continuum uses account-level ownership checks and protected API endpoints to keep users' data isolated.
+Your notes, entities, relationships, and activity data belong to you. You can export everything and delete your account at any time. Continuum uses account-level ownership checks and protected API endpoints to keep users' data isolated.
 
 Structured application data and file storage are kept separate. Authentication uses JWTs, refresh token handling, and token revocation to protect access to your account.
 

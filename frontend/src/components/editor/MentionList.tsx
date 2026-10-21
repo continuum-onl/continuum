@@ -90,9 +90,9 @@ export const MentionList = forwardRef<MentionListRef, MentionListProps>(
 
     return (
       <div
-        className="w-fit min-w-[180px] max-w-[min(360px,calc(100vw-1rem))] overflow-hidden rounded-[18px] border border-border bg-popover text-popover-foreground shadow-xl"
+        className="w-fit min-w-[180px] max-w-[min(360px,calc(100vw-1rem))] overflow-hidden rounded-[18px] border border-border/10 bg-muted/60 text-popover-foreground shadow-xl backdrop-blur-[6px] supports-[backdrop-filter]:bg-muted/60"
       >
-        <div className="flex items-center gap-2 border-b border-border bg-muted/60 px-2.5 py-1.5">
+        <div className="flex items-center gap-2 border-b border-border/10 bg-transparent px-2.5 py-1.5">
           <Trigger className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
           <span className="text-[10px] text-muted-foreground truncate font-medium">
             {query ? t("ed_searching_query", { query }) : variant === "note" ? t("ed_link_a_note") : t("ed_mention_an_entity")}
@@ -100,12 +100,12 @@ export const MentionList = forwardRef<MentionListRef, MentionListProps>(
         </div>
 
         {variant === "entity" && items.some(item => item.isCreate && item.createKind === "entity") && (
-          <div className="border-b border-border bg-muted/40 px-2.5 py-1.5">
+          <div className="border-b border-border/10 bg-transparent px-2.5 py-1.5">
             <div className="text-[9px] font-medium uppercase tracking-[0.14em] text-muted-foreground/70 mb-1.5">{t("ed_entity_type_label")}</div>
             <div className="relative">
               <button
                 onClick={() => setShowTypeSelector(!showTypeSelector)}
-                className="flex w-full items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-[12px] text-foreground transition-colors hover:bg-accent"
+                className="flex w-full items-center gap-2 rounded-md border border-border/10 bg-foreground/5 px-2 py-1.5 text-[12px] text-foreground transition-colors hover:bg-foreground/10"
               >
                 {(() => {
                   const selectedType = entityTypes.find(t => t.value === entityType);
@@ -120,7 +120,7 @@ export const MentionList = forwardRef<MentionListRef, MentionListProps>(
                 })()}
               </button>
               {showTypeSelector && (
-                <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-36 overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-lg">
+                <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-36 overflow-y-auto rounded-md border border-border/10 bg-muted/60 text-popover-foreground shadow-lg backdrop-blur-[6px]">
                   {entityTypes.map((type) => {
                     const Icon = type.icon;
                     return (
@@ -130,7 +130,7 @@ export const MentionList = forwardRef<MentionListRef, MentionListProps>(
                           setEntityType(type.value);
                           setShowTypeSelector(false);
                         }}
-                        className="flex w-full items-center gap-2 px-2.5 py-1.5 text-[12px] text-foreground transition-colors hover:bg-accent"
+                        className="flex w-full items-center gap-2 bg-transparent px-2.5 py-1.5 text-[12px] text-foreground transition-colors hover:bg-foreground/10"
                       >
                         <Icon className="w-3.5 h-3.5" />
                         <span>{type.label}</span>
@@ -156,12 +156,12 @@ export const MentionList = forwardRef<MentionListRef, MentionListProps>(
                   onMouseDown={(e) => { e.preventDefault(); select(i); }}
                   className={`flex items-center gap-2 w-full px-2.5 py-1.5 text-left transition-colors ${
                     isSelected
-                      ? "bg-accent text-accent-foreground"
-                      : "text-popover-foreground hover:bg-accent/60"
+                      ? "bg-foreground/15 text-foreground"
+                      : "text-popover-foreground hover:bg-foreground/5"
                   }`}
                 >
                   <span className={`flex items-center justify-center w-6 h-6 rounded-md ${
-                    item.isCreate ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                    item.isCreate ? "bg-primary/10 text-primary" : "bg-muted/40 text-muted-foreground"
                   }`}>
                     <Icon className="w-3.5 h-3.5" />
                   </span>
@@ -183,10 +183,10 @@ export const MentionList = forwardRef<MentionListRef, MentionListProps>(
             })
           )}
         </div>
-        <div className="flex items-center gap-2.5 border-t border-border bg-muted/60 px-2.5 py-1 text-[8px] text-muted-foreground">
-          <span><kbd className="rounded border border-border bg-background px-1 py-0.5">↑↓</kbd> {t("ed_nav_hint")}</span>
-          <span><kbd className="rounded border border-border bg-background px-1 py-0.5">↵</kbd> {t("ed_select_hint")}</span>
-          <span><kbd className="rounded border border-border bg-background px-1 py-0.5">esc</kbd> {t("ed_close_hint")}</span>
+        <div className="flex items-center gap-2.5 border-t border-border/10 bg-transparent px-2.5 py-1 text-[8px] text-muted-foreground">
+          <span><kbd className="rounded border border-border/10 bg-foreground/5 px-1 py-0.5">↑↓</kbd> {t("ed_nav_hint")}</span>
+          <span><kbd className="rounded border border-border/10 bg-foreground/5 px-1 py-0.5">↵</kbd> {t("ed_select_hint")}</span>
+          <span><kbd className="rounded border border-border/10 bg-foreground/5 px-1 py-0.5">esc</kbd> {t("ed_close_hint")}</span>
         </div>
       </div>
     );

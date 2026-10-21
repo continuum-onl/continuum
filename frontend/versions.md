@@ -4,6 +4,20 @@ Every notable change to Continuum, from the first release to the latest version.
 
 ---
 
+v1.3.4  Oct 21, 2026
+
+- Import: Preserved source file modification dates and automatically imported and linked supported Vault files referenced by Markdown notes.
+- Settings: Consolidated data export into the full ZIP backup download.
+- Quick Capture: Added a press button and Ctrl+Shift+N shortcut to create a note instantly without opening the editor.
+- UI: Enchance /projects and /activities pages.
+- Projects: Added editable time-entry history to project details so tracked durations can be reduced.
+- Activities: Added an button to edit existing entries.
+- Graph: Focus mode now supports 1st- or 2nd-degree connection depth.
+- Notes: Fixed stale or invalid cached note data preventing the editor from loading; added retry and back navigation when loading fails.
+- 3D Graph: Improved node rendering and interaction stability with GPU-animated pulses.
+
+---
+
 v1.3.3 — Oct 13, 2026
 
 - UI: Padronize /notes, /entities UI in desktop to look like mobile.
