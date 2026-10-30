@@ -50,8 +50,8 @@ public class AuthController {
     @GetMapping("/google/url")
     @Operation(summary = "Start Google OAuth2 login")
     public ResponseEntity<GoogleAuthUrlResponse> startGoogleOAuth(
-            @org.springframework.web.bind.annotation.RequestParam(value = "platform", required = false) String platform) {
-        OAuthStateService.OAuthState state = oauthStateService.createState("native".equalsIgnoreCase(platform));
+            @RequestParam(value = "platform", required = false) String platform) {
+        OAuthStateService.OAuthState state = oauthStateService.createState(platform);
         String authorizationUrl = googleOAuthService.buildAuthorizationUrl(
                 state.redirectUri(),
                 state.signedState(),
@@ -110,62 +110,16 @@ public class AuthController {
                     """)
     public ResponseEntity<RefreshTokenResponse> refresh(
             @Valid @RequestBody RefreshTokenRequest request,
-            // Alternativa: receber de Cookie HttpOnly
-            // @CookieValue(value = "refreshToken", required = false) String refreshTokenFromCookie
             @RequestHeader(value = "User-Agent", required = false) String userAgent) {
         
         String refreshToken = request.refreshToken();
         
-        // Valida o refresh token
         Claims claims = refreshTokenService.validateRefreshToken(refreshToken);
-        
-        // Gera novo access token
         String newAccessToken = refreshTokenService.generateAccessTokenFromRefresh(claims);
         
-        // Tempo de expiração: 1 hora em segundos
         long expiresIn = 3600L;
-        
-        // Retorna resposta (sem rotação de refresh token neste exemplo)
-        // Para rotação, use: RefreshTokenResponse.withRotation(newAccessToken, expiresIn, newRefreshToken)
         return ResponseEntity.ok(new RefreshTokenResponse(newAccessToken, expiresIn));
     }
-
-    /**
-     * ALTERNATIVA: Endpoint com rotação de refresh token.
-     * Use este se quiser gerar um novo refresh token a cada refresh (mais seguro).
-     * 
-     * Descomente para usar rotation:
-     */
-    /*
-    @PostMapping("/refresh-with-rotation")
-    @Operation(summary = "Refresh access token with rotation (more secure)",
-            description = """
-                    Valida o refresh token e retorna novo access token E novo refresh token.
-                    Revoga o refresh token antigo automaticamente.
-                    """)
-    public ResponseEntity<RefreshTokenResponse> refreshWithRotation(
-            @Valid @RequestBody RefreshTokenRequest request,
-            @RequestHeader(value = "User-Agent", required = false) String userAgent) {
-        
-        String oldRefreshToken = request.refreshToken();
-        
-        // Valida refresh token
-        Claims claims = refreshTokenService.validateRefreshToken(oldRefreshToken);
-        String userId = claims.get("userId", String.class);
-        
-        // Gera novo access token
-        String newAccessToken = refreshTokenService.generateAccessTokenFromRefresh(claims);
-        
-        // Gera novo refresh token
-        String newRefreshToken = refreshTokenService.generateRefreshToken(userId, userAgent);
-        
-        // Revoga o token antigo
-        refreshTokenService.revokeToken(oldRefreshToken);
-        
-        long expiresIn = 3600L;
-        return ResponseEntity.ok(RefreshTokenResponse.withRotation(newAccessToken, expiresIn, newRefreshToken));
-    }
-    */
 
     @GetMapping("/test-oauth")
     public ResponseEntity<String> testOAuth() {
