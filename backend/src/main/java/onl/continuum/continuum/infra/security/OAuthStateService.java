@@ -26,39 +26,49 @@ public class OAuthStateService {
     private final Key stateKey;
     private final String googleRedirectUrl;
     private final String finalFrontendUrl;
+    private final String adminFrontendUrl;
 
     public OAuthStateService(@Value("${jwt.secret}") String jwtSecret,
-                             @Value("${frontend.url:https://api-continuum.vercel.app}") String frontendUrl) {
+                             @Value("${frontend.url:https://api-continuum.vercel.app}") String frontendUrl,
+                             @Value("${admin.frontend.url:https://admin.continuum.onl}") String adminFrontendUrl) {
         this.stateKey = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
-        
+
         String baseUrl = frontendUrl.endsWith("/") 
                 ? frontendUrl.substring(0, frontendUrl.length() - 1) 
                 : frontendUrl;
 
         this.googleRedirectUrl = baseUrl + GOOGLE_CALLBACK_PATH;
         this.finalFrontendUrl = baseUrl + REACT_CALLBACK_PATH;
+        this.adminFrontendUrl = trimTrailingSlash(adminFrontendUrl);
     }
 
     public OAuthState createState() {
-        return createState(false);
+        return createState(null);
     }
 
     /** nativeApp=true marks the flow so the web callback hands the code back to the Android app. */
     public OAuthState createState(boolean nativeApp) {
+        return createState(nativeApp ? "native" : null);
+    }
+
+    public OAuthState createState(String platform) {
+        String normalizedPlatform = platform == null ? "web" : platform.toLowerCase(java.util.Locale.ROOT);
+        String redirectUri = "admin".equals(normalizedPlatform)
+                ? adminFrontendUrl + GOOGLE_CALLBACK_PATH
+                : googleRedirectUrl;
+
         String nonce = UUID.randomUUID().toString();
         String stateToken = Jwts.builder()
                 .setSubject("google-oauth")
                 .claim("type", STATE_TYPE)
                 .claim("nonce", nonce)
-                // IMPORTANTE: guardamos a URL EXATA enviada ao Google na etapa 1.
-                // O Google exige que a etapa 2 (troca do code) use a mesma string.
-                .claim("redirectUri", googleRedirectUrl)
-                .claim("platform", nativeApp ? "native" : "web")
+                .claim("redirectUri", redirectUri)
+                .claim("platform", normalizedPlatform)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + STATE_EXPIRATION_MS))
                 .signWith(stateKey, SignatureAlgorithm.HS256)
                 .compact();
-        return new OAuthState(stateToken, nonce, googleRedirectUrl);
+        return new OAuthState(stateToken, nonce, redirectUri);
     }
 
     public OAuthState parseState(String stateToken) {
@@ -83,5 +93,10 @@ public class OAuthStateService {
 
     public String getGoogleRedirectUrl() { return googleRedirectUrl; }
     public String getFinalFrontendUrl() { return finalFrontendUrl; }
+
+    private static String trimTrailingSlash(String url) {
+        return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
+    }
+
     public static record OAuthState(String signedState, String nonce, String redirectUri) {}
 }
