@@ -119,6 +119,10 @@ api.interceptors.request.use((config) => {
     if (tz) config.headers["X-Timezone"] = tz;
     config.headers["X-TZ-Offset"] = String(-new Date().getTimezoneOffset());
   } catch { /* ignore */ }
+  try {
+    const ws = localStorage.getItem("continuum:workspace");
+    if (ws) config.headers["X-Workspace-Id"] = ws;
+  } catch { /* ignore */ }
   // Version policy: the server decides what is current and what is blocked.
   try {
     const appVersion = getClientVersion();
@@ -630,12 +634,22 @@ export const timeTrackingApi = {
   recoverSession: (entityId: string) => api.post(`/api/time-tracking/${entityId}/recover`),
 };
 
+export interface MemoryItem {
+  noteId: string;
+  title: string;
+  excerpt: string;
+  imageUrl: string | null;
+  daysAgo: number;
+  milestone: string;
+  createdAt: string;
+}
 
 export const insightsApi = {
   hotNotes: (limit = 10) => api.get("/api/insights/notes/hot", { params: { limit } }),
   forgottenNotes: (limit = 10) => api.get("/api/insights/notes/forgotten", { params: { limit } }),
   hotEntities: (limit = 10) => api.get("/api/insights/entities/hot", { params: { limit } }),
   forgottenEntities: (limit = 10) => api.get("/api/insights/entities/forgotten", { params: { limit } }),
+  memories: () => api.get<MemoryItem[]>("/api/insights/memories"),
 };
 
 export const importApi = {
@@ -665,4 +679,21 @@ export const trashApi = {
   restore: (id: string) => api.post(`/api/trash/${encodeURIComponent(id)}/restore`),
   purge: (id: string) => api.delete(`/api/trash/${encodeURIComponent(id)}`),
   empty: () => api.delete("/api/trash"),
+};
+
+export interface Workspace {
+  id: string;
+  name: string;
+  color?: string;
+  icon?: string;
+  createdAt?: string;
+}
+
+export const workspacesApi = {
+  list: () => api.get<Workspace[]>("/api/workspaces"),
+  create: (name: string, color?: string) => api.post<Workspace>("/api/workspaces", { name, color }),
+  update: (id: string, data: { name?: string; color?: string }) => api.put<Workspace>(`/api/workspaces/${id}`, data),
+  delete: (id: string) => api.delete(`/api/workspaces/${id}`),
+  assign: (kind: "NOTE" | "ENTITY", id: string, workspaceIds: string[]) =>
+    api.put("/api/workspaces/assign", { kind, id, workspaceIds }),
 };

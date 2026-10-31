@@ -40,6 +40,7 @@ vi.mock("@/lib/api", () => ({
   preferencesApi: { get: api.preferences },
   subscriptionApi: { me: api.subscription },
   dashboardApi: { summary: api.dashboard },
+  getAllNoteTypes: api.noteTypes,
 }));
 
 import { getPrefetchProgress, prefetchPrimaryLists, PREFETCH_CONCURRENCY } from "@/lib/prefetch";

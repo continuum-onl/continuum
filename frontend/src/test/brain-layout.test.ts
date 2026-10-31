@@ -7,7 +7,8 @@ describe('brain network layout', () => {
     expect(points.every(p => p.every(Number.isFinite))).toBe(true);
     expect(Math.min(...points.map(p => p[0]))).toBeLessThan(-2.5);
     expect(Math.max(...points.map(p => p[0]))).toBeGreaterThan(2.5);
-    expect(Math.min(...points.map(p => p[1]))).toBeLessThan(-3);
+    // The stem is intentionally short now (nodes stay on the hemispheres), so only require a descent.
+    expect(Math.min(...points.map(p => p[1]))).toBeLessThan(-2.5);
     expect(Math.max(...points.map(p => p[2])) - Math.min(...points.map(p => p[2]))).toBeGreaterThan(5);
     expect(links.length).toBeGreaterThan(600);
   });

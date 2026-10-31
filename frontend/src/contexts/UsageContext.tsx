@@ -4,7 +4,7 @@ import { entitiesApi, notesApi, vaultApi } from "@/lib/api";
 import { queryClient } from "@/lib/query-client";
 import { qk, STALE } from "@/lib/queries";
 import { getPlanLimits } from "@/lib/plan";
-import { getUsageWarnings, usageWarningContent } from "@/lib/notifications";
+import { getUsageWarnings, loadWarnedMetrics, saveWarnedMetrics, usageWarningContent } from "@/lib/notifications";
 import { toast } from "@/hooks/use-toast";
 import type { EntityType, UserUsage } from "@/types";
 
@@ -131,8 +131,8 @@ export function UsageProvider({ children }: { children: ReactNode }) {
     const userId = user?.id ?? null;
     if (previousUserId.current !== userId) {
       previousUserId.current = userId;
-      warnedMetrics.current.clear();
-      return;
+      warnedMetrics.current = new Set(userId ? loadWarnedMetrics(userId) : []);
+      if (!userId) return;
     }
     if (!user || loading || !usage) return;
 
@@ -149,6 +149,7 @@ export function UsageProvider({ children }: { children: ReactNode }) {
       toast({ title: content.title, description: content.description, variant: "warning", notificationCategory: "limit" });
       warnedMetrics.current.add(metric);
     }
+    saveWarnedMetrics(user.id, [...warnedMetrics.current]);
   }, [user, usage, loading]);
 
   const value = useMemo(() => ({ usage, loading, refresh, applyUsageDelta }), [usage, loading, refresh, applyUsageDelta]);

@@ -11,6 +11,8 @@ import React, { useState, useEffect } from 'react';
 import { useApi } from '@/hooks/useApi';
 import { useAuth } from '@/contexts/AuthContextNew';
 import { toast } from '@/hooks/use-toast';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { formatLocalizedDate } from '@/lib/date-format';
 
 // ====================================================================
 // 1. PÁGINA DE LOGIN
@@ -230,6 +232,7 @@ interface UserProfile {
 
 export function ProfilePageAdvanced() {
   const { user, logout } = useAuth();
+  const { language } = useLanguage();
   const { request, patch } = useApi({
     onSuccess: () => {
       console.log('✓ Perfil atualizado com sucesso');
@@ -307,7 +310,7 @@ export function ProfilePageAdvanced() {
             <strong>Email:</strong> {profile.email}
           </p>
           <p>
-            <strong>Membro desde:</strong> {new Date(profile.createdAt).toLocaleDateString('pt-BR')}
+            <strong>Membro desde:</strong> {formatLocalizedDate(profile.createdAt, language)}
           </p>
 
           <button

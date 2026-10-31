@@ -111,10 +111,11 @@ public class MetricsService {
     public DashboardMetrics getDashboard(String userId) {
         User user = getUser(userId);
 
-        long totalNotes = noteRepo.countByUserId(userId);
-        long totalEntities = entityRepo.countByUserId(userId);
-
-        List<Note> notes = noteRepo.findByUserId(userId);
+        List<Note> notes = noteRepo.findByUserId(userId).stream()
+                .filter(n -> onl.continuum.continuum.infra.web.RequestWorkspace.matches(n.getWorkspaceIds())).toList();
+        long totalNotes = notes.size();
+        long totalEntities = entityRepo.findByUserIdAndArchivedAtIsNull(userId).stream()
+                .filter(e -> onl.continuum.continuum.infra.web.RequestWorkspace.matches(e.getWorkspaceIds())).count();
         Map<String, Long> entityMentionCount = notes.stream()
                 .filter(note -> note.getEntityIds() != null)
                 .flatMap(note -> note.getEntityIds().stream())
@@ -312,10 +313,10 @@ public class MetricsService {
         java.time.ZoneId zone = onl.continuum.continuum.infra.web.RequestZone.get();
 
         List<Note> notes = noteRepo.findByUserId(userId).stream()
-                .filter(n -> vaultId == null || vaultId.equals(n.getVaultId()))
+                .filter(n -> (vaultId == null || vaultId.equals(n.getVaultId())) && onl.continuum.continuum.infra.web.RequestWorkspace.matches(n.getWorkspaceIds()))
                 .toList();
         List<Entity> entities = entityRepo.findByUserIdAndArchivedAtIsNull(userId).stream()
-                .filter(e -> vaultId == null || vaultId.equals(e.getVaultId()))
+                .filter(e -> (vaultId == null || vaultId.equals(e.getVaultId())) && onl.continuum.continuum.infra.web.RequestWorkspace.matches(e.getWorkspaceIds()))
                 .toList();
         List<TrackingEvent> trackingEvents = vaultData.readTrackingEvents(vaultId == null ? userId : vaultId).stream()
                 .filter(e -> userId.equals(e.getUserId()))

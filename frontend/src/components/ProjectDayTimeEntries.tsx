@@ -8,6 +8,7 @@ import SmoothDrawer from "@/components/ui/smooth-drawer";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Check, Loader2, Trash2 } from "@/lib/heroicons";
+import { formatLocalizedDate } from "@/lib/date-format";
 
 interface ProjectDayTimeEntriesProps {
   entityId: string;
@@ -81,7 +82,7 @@ export function ProjectDayTimeEntries({ entityId, date, onOpenChange }: ProjectD
   };
 
   const formattedDate = date
-    ? new Date(`${date}T12:00:00`).toLocaleDateString(language, { dateStyle: "full" })
+    ? formatLocalizedDate(date, language, { dateStyle: "full" })
     : "";
   const totalSeconds = entries.reduce((total, entry) => total + (entry.durationSeconds || 0), 0);
   const formattedTotal = [

@@ -37,7 +37,7 @@ public interface EntityRepository extends MongoRepository<Entity, String> {
      * @param userId ID do usuário
      * @return Lista de entidades com apenas os campos essenciais para o grafo
      */
-    @Query(value = "{ 'userId': ?0, 'archivedAt': null }", fields = "{ 'id': 1, 'title': 1, 'type': 1 }")
+    @Query(value = "{ 'userId': ?0, 'archivedAt': null }", fields = "{ 'id': 1, 'title': 1, 'type': 1, 'workspaceIds': 1 }")
     List<Entity> findGraphDataByUserId(String userId);
     
     /**

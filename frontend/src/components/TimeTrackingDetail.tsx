@@ -18,12 +18,15 @@ import {
 import type { Entity } from '@/types';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from '@/hooks/use-toast';
+import { formatLocalizedDate, getDateFnsLocale, getDateLocale } from "@/lib/date-format";
 
 /**
  * Detail view for a single time-tracked entity
  */
 export function TimeTrackingDetail() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const dateFnsLocale = getDateFnsLocale(language);
+  const dateLocale = getDateLocale(language);
   const { entityId } = useParams<{ entityId: string }>();
   const navigate = useNavigate();
   const [isAddingTimeOpen, setIsAddingTimeOpen] = useState(false);
@@ -68,8 +71,8 @@ export function TimeTrackingDetail() {
     if (!dailyBreakdown) return { current: 0, previous: 0 };
 
     const today = new Date();
-    const currentWeekStart = startOfWeek(today);
-    const currentWeekEnd = endOfWeek(today);
+    const currentWeekStart = startOfWeek(today, { locale: dateFnsLocale });
+    const currentWeekEnd = endOfWeek(today, { locale: dateFnsLocale });
 
     const currentWeekTotal = Object.values(dailyBreakdown as Record<string, any>)
       .filter((entry: any) => {
@@ -82,7 +85,7 @@ export function TimeTrackingDetail() {
       current: currentWeekTotal,
       previous: (totalTimeSummary?.totalSeconds || 0) - currentWeekTotal,
     };
-  }, [dailyBreakdown, totalTimeSummary]);
+  }, [dailyBreakdown, totalTimeSummary, dateFnsLocale]);
 
   // Parse duration string (HH:MM:SS)
   const parseDurationString = (str: string): number => {
@@ -224,6 +227,7 @@ export function TimeTrackingDetail() {
               <label className="text-sm text-zinc-400 block mb-2">{t('tm_date')}</label>
               <input
                 type="date"
+                lang={dateLocale}
                 value={manualDate}
                 onChange={(e) => setManualDate(e.target.value)}
                 className="w-full px-3 py-2 bg-zinc-950 border border-border/10 rounded-lg text-foreground"
@@ -272,7 +276,7 @@ export function TimeTrackingDetail() {
               >
                 <div className="flex-1">
                   <p className="font-medium text-foreground">
-                    {format(new Date(date), 'EEEE, MMM d')}
+                    {formatLocalizedDate(date, language, { weekday: "long", month: "short", day: "numeric" })}
                   </p>
                   <p className="text-xs text-zinc-500">
                     {entry.source === 'TIMER' && t('tm_from_timer')}

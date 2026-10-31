@@ -1,9 +1,10 @@
 import { useMemo } from "react";
-import { Calendar as Cal, CalendarCell, CalendarGrid, CalendarGridBody, CalendarGridHeader, CalendarHeaderCell, Heading, Button as RACButton } from "react-aria-components";
+import { Calendar as Cal, CalendarCell, CalendarGrid, CalendarGridBody, CalendarGridHeader, CalendarHeaderCell, Heading, Button as RACButton, I18nProvider } from "react-aria-components";
 import { getLocalTimeZone, today } from "@internationalized/date";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { getDateLocale, formatLocalizedDate } from "@/lib/date-format";
 
 interface ActivityAnalyticsCalendarProps {
   trackingDates?: string[];
@@ -13,7 +14,8 @@ interface ActivityAnalyticsCalendarProps {
 }
 
 export function ActivityAnalyticsCalendar({ trackingDates = [], isUpdating = false, onToggleDate }: ActivityAnalyticsCalendarProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const dateLocale = getDateLocale(language);
   const completionSet = useMemo(() => {
     const s = new Set<string>();
     trackingDates.forEach((d) => s.add(d.split("T")[0]));
@@ -46,7 +48,7 @@ export function ActivityAnalyticsCalendar({ trackingDates = [], isUpdating = fal
             <h3 className="mt-1 font-serif text-xl text-foreground">{t("tm_summary")}</h3>
           </div>
           <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-            {now.toDate(getLocalTimeZone()).toLocaleString(undefined, { month: "short", year: "numeric" })}
+            {formatLocalizedDate(now.toDate(getLocalTimeZone()), language, { month: "short", year: "numeric" })}
           </span>
         </div>
 
@@ -60,14 +62,15 @@ export function ActivityAnalyticsCalendar({ trackingDates = [], isUpdating = fal
 
       {/* Calendar */}
       <div className="py-5">
-        <Cal
-          aria-label={t("tm_activity_calendar_label")}
-          className="w-full"
-          maxValue={now}
-          value={null}
-          isDisabled={isUpdating}
-          onChange={(d) => { if (d && onToggleDate) { const k = d.toString(); onToggleDate(k, completionSet.has(k)); } }}
-        >
+        <I18nProvider locale={dateLocale}>
+          <Cal
+            aria-label={t("tm_activity_calendar_label")}
+            className="w-full"
+            maxValue={now}
+            value={null}
+            isDisabled={isUpdating}
+            onChange={(d) => { if (d && onToggleDate) { const k = d.toString(); onToggleDate(k, completionSet.has(k)); } }}
+          >
           <header className="flex items-center gap-1 pb-3 sm:pb-4">
             <RACButton
               slot="previous"
@@ -113,7 +116,8 @@ export function ActivityAnalyticsCalendar({ trackingDates = [], isUpdating = fal
               }}
             </CalendarGridBody>
           </CalendarGrid>
-        </Cal>
+          </Cal>
+        </I18nProvider>
 
         {onToggleDate && (
           <p className="mt-3 font-mono text-[9px] uppercase tracking-widest text-muted-foreground">{t("tm_toggle_day_hint")}</p>

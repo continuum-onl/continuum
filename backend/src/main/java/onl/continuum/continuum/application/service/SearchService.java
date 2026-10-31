@@ -60,8 +60,13 @@ public class SearchService {
         String trimmedQuery = query.trim();
         
         // Buscar usando MongoDB Text Search (O(log n))
-        List<Note> notes = searchNotes(userId, trimmedQuery);
-        List<Entity> entities = searchEntities(userId, trimmedQuery);
+        // Respect the active workspace (X-Workspace-Id); no header means "All".
+        List<Note> notes = searchNotes(userId, trimmedQuery).stream()
+            .filter(n -> onl.continuum.continuum.infra.web.RequestWorkspace.matches(n.getWorkspaceIds()))
+            .collect(Collectors.toList());
+        List<Entity> entities = searchEntities(userId, trimmedQuery).stream()
+            .filter(e -> onl.continuum.continuum.infra.web.RequestWorkspace.matches(e.getWorkspaceIds()))
+            .collect(Collectors.toList());
         
         // Converter para DTOs
         List<SearchResultNoteDTO> noteResults = notes.stream()

@@ -34,6 +34,7 @@ import {
 } from "@/lib/heroicons";
 import { entitiesApi, notesApi, vaultApi } from "@/lib/api";
 import type { Entity } from "@/types";
+import { getActiveWorkspace } from "@/lib/workspace";
 import { getMentionClickTarget } from "@/lib/tiptap-content";
 import { useToast } from "@/hooks/use-toast";
 import { MentionList, type MentionListRef, type MentionItem } from "./MentionList";
@@ -116,9 +117,11 @@ type Cache<T> = { token: string | null; at: number; data: T[]; pending: Promise<
 const entityCache: Cache<Entity> = { token: null, at: 0, data: [], pending: null };
 const noteCache: Cache<{ id: string; title: string }> = { token: null, at: 0, data: [], pending: null };
 
+// Cache identity = session + active workspace, so switching workspace drops stale suggestions.
 const getToken = () => {
   if (typeof window === "undefined") return null;
-  return window.sessionStorage.getItem("access_token") ?? window.localStorage.getItem("access_token");
+  const token = window.sessionStorage.getItem("access_token") ?? window.localStorage.getItem("access_token");
+  return `${token ?? ""}|${getActiveWorkspace() ?? "ALL"}`;
 };
 
 /** Tracks every open mention popup so we can always clean up stragglers. */

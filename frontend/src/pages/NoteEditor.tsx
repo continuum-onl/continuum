@@ -37,6 +37,8 @@ import { getEditorReadOnlySync, loadEditorReadOnly, saveEditorReadOnly } from "@
 import { loadNoteFontSize, subscribeNoteFontSize } from "@/lib/note-font-size";
 import { queryClient } from "@/lib/query-client";
 import { qk, STALE } from "@/lib/queries";
+import { WorkspaceAssign } from "@/components/WorkspaceSwitcher";
+import { formatLocalizedDate } from "@/lib/date-format";
 
 interface NoteData {
   id: string;
@@ -75,7 +77,7 @@ export default function NoteEditor() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const isMobile = useIsMobile();
   const isRestoring = useIsRestoring();
   const editorRef = useRef<TiptapEditorHandle>(null);
@@ -722,7 +724,7 @@ export default function NoteEditor() {
           {note?.updatedAt && (
             <div className="pointer-events-none absolute bottom-[calc(0.5rem+var(--safe-area-inset-bottom,env(safe-area-inset-bottom,0px)))] left-4 flex items-center gap-1.5 rounded-md border border-border/5 bg-background/80 px-2 py-1 text-[10px] text-muted-foreground backdrop-blur">
               <Clock className="w-3 h-3" />
-              {t("ed_edited", { date: new Date(note.updatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) })}
+              {t("ed_edited", { date: formatLocalizedDate(note.updatedAt, language, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) })}
             </div>
           )}
         </div>
@@ -755,6 +757,9 @@ export default function NoteEditor() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-5 space-y-6">
+            {id && note?.id === id && (
+              <WorkspaceAssign key={id} kind="NOTE" id={id} value={(note as any)?.workspaceIds} />
+            )}
             {/* Note type */}
             <div className="space-y-2">
               <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">

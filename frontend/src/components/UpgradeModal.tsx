@@ -27,6 +27,7 @@ export default function UpgradeModal({ open, onOpenChange, reason }: UpgradeModa
     t("bill_feature_vault_storage"),
     t("bill_feature_advanced_metrics"),
     t("bill_feature_export_calendar"),
+    t("bill_feature_unlimited_workspaces"),
   ];
 
   const handleCheckout = () => {

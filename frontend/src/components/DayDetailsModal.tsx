@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { getDateFnsLocale } from '@/lib/date-format';
 
 interface DayData {
   date: Date;
@@ -33,7 +34,7 @@ interface DayDetailsModalProps {
  * Modal showing detailed time entries for a specific day
  */
 export function DayDetailsModal({ dayData, isOpen, onClose }: DayDetailsModalProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   if (!dayData) return null;
 
   const formatDuration = (seconds: number): string => {
@@ -55,7 +56,7 @@ export function DayDetailsModal({ dayData, isOpen, onClose }: DayDetailsModalPro
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Clock className="w-5 h-5" />
-            {format(dayData.date, 'EEEE, MMMM d, yyyy')}
+            {format(dayData.date, 'EEEE, MMMM d, yyyy', { locale: getDateFnsLocale(language) })}
           </DialogTitle>
         </DialogHeader>
 

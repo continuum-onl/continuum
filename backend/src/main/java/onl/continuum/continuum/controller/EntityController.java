@@ -71,7 +71,10 @@ public class EntityController {
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<Entity> entities = entityService.listByUser(user.getUserId(), pageable, startDate, endDate);
         final int historyDays = historyDaysFor(user);
-        return ResponseEntity.ok(entities.map(e -> EntityResponse.from(e, historyDays)));
+        List<EntityResponse> visible = entities.getContent().stream()
+                .filter(e -> onl.continuum.continuum.infra.web.RequestWorkspace.matches(e.getWorkspaceIds()))
+                .map(e -> EntityResponse.from(e, historyDays)).toList();
+        return ResponseEntity.ok(new org.springframework.data.domain.PageImpl<>(visible, pageable, entities.getTotalElements()));
     }
 
     @GetMapping("/{id}")

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { isAxiosError } from "axios";
+import SmoothDrawer from "@/components/ui/smooth-drawer";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -75,11 +76,12 @@ export function CreateEntityDialog({ open, onOpenChange, defaultType = "TOPIC", 
       toast({ title: t("ent_created_toast", { type: selected.label }), description: data?.title });
       onCreated?.({ ...data, _optimisticId: optimisticEntity.id } as Entity & { _optimisticId: string });
       onOpenChange(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
       onCreationFailed?.(optimisticEntity.id);
+      const responseMessage = isAxiosError<{ message?: string }>(err) ? err.response?.data?.message : undefined;
       toast({
         title: t("ent_could_not_create"),
-        description: err?.response?.data?.message || err?.message || t("ent_try_again"),
+        description: responseMessage || (err instanceof Error ? err.message : undefined) || t("ent_try_again"),
         variant: "destructive",
       });
     } finally {
@@ -88,80 +90,77 @@ export function CreateEntityDialog({ open, onOpenChange, defaultType = "TOPIC", 
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <div className="flex flex-col">
-            <DialogTitle>{t("ent_new_type", { type: selected.label })}</DialogTitle>
-            <DialogDescription>{selected.hint}</DialogDescription>
-          </div>
-        </DialogHeader>
-
-        <div className="space-y-4 pt-1">
-          <div className="space-y-1.5">
-            <Label className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{t("ent_title")}</Label>
-            <Input
-              autoFocus
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={t("ent_name_your", { type: selected.label.toLowerCase() })}
-              className="h-11 bg-foreground/[0.03] border-border/10 focus-visible:ring-ring"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey && title.trim()) {
-                  e.preventDefault();
-                  void handleSubmit();
-                }
-              }}
-            />
-          </div>
-
-          {!lockType && (
-            <div className="space-y-1.5">
-              <Label className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{t("ent_type")}</Label>
-              <Select value={type} onValueChange={setType}>
-                <SelectTrigger className="h-11 bg-foreground/[0.03] border-border/10">
-                  <SelectValue className="flex-1 text-left" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TYPE_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      <div className="flex flex-col">
-                        <span>{opt.label}</span>
-                        <span className="text-[11px] text-muted-foreground">{opt.hint}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          <div className="space-y-1.5">
-            <Label className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{t("ent_description_optional")}</Label>
-            <Textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder={t("ent_a_short_note")}
-              maxLength={MAX_ENTITY_DESCRIPTION_LENGTH}
-              className="bg-foreground/[0.03] border-border/10 focus-visible:ring-ring"
-              rows={3}
-            />
-            <p className="text-right text-[10px] text-muted-foreground">
-              {t("ent_description_character_count", { count: description.length })}
-            </p>
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
-              {t("ent_cancel")}
-            </Button>
-            <Button onClick={handleSubmit} disabled={submitting || !title.trim()}>
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {t("ent_create_type", { type: selected.label })}
-            </Button>
-          </div>
+    <SmoothDrawer
+      open={open}
+      onOpenChange={onOpenChange}
+      title={t("ent_new_type", { type: selected.label })}
+      description={selected.hint}
+      className="max-h-[96dvh]"
+      bodyClassName="overflow-y-hidden"
+    >
+      <div className="space-y-4 px-5 pb-6">
+        <div className="space-y-1.5">
+          <Label className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{t("ent_title")}</Label>
+          <Input
+            autoFocus
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={t("ent_name_your", { type: selected.label.toLowerCase() })}
+            className="h-11 bg-foreground/[0.03] border-border/10 focus-visible:ring-ring"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && title.trim()) {
+                e.preventDefault();
+                void handleSubmit();
+              }
+            }}
+          />
         </div>
-      </DialogContent>
-    </Dialog>
+
+        {!lockType && (
+          <div className="space-y-1.5">
+            <Label className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{t("ent_type")}</Label>
+            <Select value={type} onValueChange={setType}>
+              <SelectTrigger className="h-11 justify-between border-border/10 bg-foreground/[0.03] text-left">
+                <SelectValue className="flex-1 text-left" />
+              </SelectTrigger>
+              <SelectContent>
+                {TYPE_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    <div className="flex flex-col">
+                      <span>{opt.label}</span>
+                      <span className="text-[11px] text-muted-foreground">{opt.hint}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        <div className="space-y-1.5">
+          <Label className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{t("ent_description_optional")}</Label>
+          <Textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={t("ent_a_short_note")}
+            maxLength={MAX_ENTITY_DESCRIPTION_LENGTH}
+            className="h-24 min-h-[6rem] max-h-[20dvh] resize-none overflow-y-auto border-border/10 bg-foreground/[0.03] focus-visible:ring-ring"
+          />
+          <p className="text-right text-[10px] text-muted-foreground">
+            {t("ent_description_character_count", { count: description.length })}
+          </p>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 pt-2">
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={submitting}>
+            {t("ent_cancel")}
+          </Button>
+          <Button onClick={handleSubmit} disabled={submitting || !title.trim()}>
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {t("ent_create_type", { type: selected.label })}
+          </Button>
+        </div>
+      </div>
+    </SmoothDrawer>
   );
 }

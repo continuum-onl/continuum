@@ -49,3 +49,12 @@ describe("shared notification content", () => {
     document.documentElement.lang = "en";
   });
 });
+describe("usage warning memory", () => {
+  it("remembers warned metrics per user across app opens", async () => {
+    const { loadWarnedMetrics, saveWarnedMetrics } = await import("@/lib/notifications");
+    localStorage.clear();
+    saveWarnedMetrics("u1", ["notes", "vault"]);
+    expect(loadWarnedMetrics("u1")).toEqual(["notes", "vault"]);
+    expect(loadWarnedMetrics("u2")).toEqual([]);
+  });
+});

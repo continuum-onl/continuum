@@ -23,9 +23,12 @@ import java.util.List;
 public class InsightsController {
 
     private final InsightsService insightsService;
+    private final onl.continuum.continuum.application.service.MemoriesService memoriesService;
 
-    public InsightsController(InsightsService insightsService) {
+    public InsightsController(InsightsService insightsService,
+                              onl.continuum.continuum.application.service.MemoriesService memoriesService) {
         this.insightsService = insightsService;
+        this.memoriesService = memoriesService;
     }
 
     @GetMapping("/notes/hot")
@@ -50,5 +53,13 @@ public class InsightsController {
     @Operation(summary = "Important but forgotten entities")
     public ResponseEntity<List<EntityInsightDTO>> forgottenEntities(@RequestParam(defaultValue = "10") int limit) {
         return ResponseEntity.ok(insightsService.forgottenEntities(limit));
+    }
+
+    @GetMapping("/memories")
+    @Operation(summary = "Daily memories: up to 3 old notes hitting a time milestone, with a preview")
+    public ResponseEntity<List<onl.continuum.continuum.application.service.MemoriesService.Memory>> memories(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal
+            onl.continuum.continuum.infra.security.CustomUserDetails user) {
+        return ResponseEntity.ok(memoriesService.feed(user.getUserId(), user.getVaultId()));
     }
 }

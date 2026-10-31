@@ -5,6 +5,7 @@ import { timeTrackingApi } from '@/lib/api';
 import { useTimeTracking, type TimeEntry } from '@/hooks/useTimeTracking';
 import { useTimerGoal } from '@/hooks/useTimerGoal';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { formatLocalizedDate, getDateFnsLocale, getDateLocale } from '@/lib/date-format';
 import SmoothDrawer from '@/components/ui/smooth-drawer';
 import { Button } from '@/components/ui/button';
 import { InfoPopover } from '@/components/ui/info-popover';
@@ -177,7 +178,9 @@ interface YearBlock {
 }
 
 export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const dateFnsLocale = getDateFnsLocale(language);
+  const dateLocale = getDateLocale(language);
   const qc = useQueryClient();
   const to = useMemo(() => new Date(), []);
   const minYear = to.getFullYear() - Math.ceil(weeks / 52);
@@ -250,7 +253,7 @@ export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
 
     return sorted.map((year) => {
       const start = new Date(year, 0, 1);
-      start.setDate(start.getDate() - start.getDay()); // align to Sunday
+      start.setDate(start.getDate() - ((start.getDay() - (dateFnsLocale.options?.weekStartsOn ?? 0) + 7) % 7));
       const end = new Date(year, 11, 31);
       const numWeeks = Math.ceil((end.getTime() - start.getTime()) / (7 * 86400 * 1000)) + 1;
       const cols: YearBlock['cols'] = [];
@@ -271,7 +274,7 @@ export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
       }
       return { year, cols };
     });
-  }, [byDay, countByDay, to]);
+  }, [byDay, countByDay, to, dateFnsLocale]);
 
   const totalSeconds = useMemo(() => {
     let t = 0;
@@ -409,6 +412,7 @@ export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
               <span className="text-xs font-medium text-muted-foreground">{t('tm_date')}</span>
               <input
                 type="date"
+                lang={dateLocale}
                 value={entryDate}
                 max={dateKey(new Date())}
                 onChange={(event) => setEntryDate(event.target.value)}
@@ -520,7 +524,9 @@ export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
                                 openCell(e.currentTarget, cell);
                               }
                             }}
-                            aria-label={entityId ? `${cell.key}, ${fmtHM(cell.seconds)}, ${cell.count} ${t('tm_entry_plural')}` : cell.key}
+                            aria-label={entityId
+                              ? `${formatLocalizedDate(cell.key, language, { dateStyle: "full" })}, ${fmtHM(cell.seconds)}, ${cell.count} ${t('tm_entry_plural')}`
+                              : formatLocalizedDate(cell.key, language, { dateStyle: "full" })}
                             title={entityId ? t('tm_project_day_open') : undefined}
                             disabled={isFuture}
                             className={`w-[14px] h-[14px] sm:w-[13px] sm:h-[13px] rounded-[3px] ${
@@ -549,7 +555,7 @@ export function TimeHeatmap({ entityId, weeks = 52 }: Props) {
                 style={{ left, top: hover.y - 6, width: W }}
               >
                 <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
-                  {hover.key}
+                  {formatLocalizedDate(hover.key, language, { dateStyle: "full" })}
                   {hover.key === todayKey && ` ${t('tm_today_suffix')}`}
                 </p>
                 <p className="text-xs font-mono text-foreground mt-0.5">

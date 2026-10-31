@@ -47,8 +47,10 @@ public class GraphController {
     public ResponseEntity<GraphDTO> getGraphData(@AuthenticationPrincipal CustomUserDetails user) {
         String userId = user.getUserId();
 
-        List<Note> notes = noteService.listByUserForGraph();
-        List<Entity> entities = entityService.listByUserForGraph(userId);
+        List<Note> notes = noteService.listByUserForGraph().stream()
+                .filter(n -> onl.continuum.continuum.infra.web.RequestWorkspace.matches(n.getWorkspaceIds())).toList();
+        List<Entity> entities = entityService.listByUserForGraph(userId).stream()
+                .filter(e -> onl.continuum.continuum.infra.web.RequestWorkspace.matches(e.getWorkspaceIds())).toList();
 
         List<NodeDTO> nodes = new ArrayList<>();
         Set<String> nodeIds = new HashSet<>();

@@ -14,6 +14,7 @@ import { entitiesApi, notesApi } from "@/lib/api";
 import { tiptapContentToPlainText } from "@/lib/tiptap-content";
 import type { Entity, EntityStats, Note } from "@/types";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { formatLocalizedDate } from "@/lib/date-format";
 
 function getEntityTypeConfig(t: (key: string) => string, type: string): { label: string } {
   const key = `ent_type_${type.toLowerCase()}`;
@@ -38,8 +39,6 @@ interface SideInspectorProps {
 const truncateText = (value: string, maxLength = 220) =>
   value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value;
 
-const formatDate = (value?: string) => (value ? new Date(value).toLocaleDateString("en-US") : "—");
-
 export const SideInspector = memo(function SideInspector({ isOpen, entity, onClose, mobileBottomSheet: mobileBottomSheetProp = false }: SideInspectorProps) {
   const isMobile = useIsMobile();
   const drawerMode = mobileBottomSheetProp && isMobile;
@@ -47,7 +46,8 @@ export const SideInspector = memo(function SideInspector({ isOpen, entity, onClo
   const navigate = useNavigate();
   const { openInspector, setLoadingEntityId } = useEntityStore();
   const { toast } = useToast();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const formatDate = (value?: string) => (value ? formatLocalizedDate(value, language) : "—");
   const [loading, setLoading] = useState(false);
   const [resolvedFromApi, setResolvedFromApi] = useState(false);
   const [error, setError] = useState<string | null>(null);

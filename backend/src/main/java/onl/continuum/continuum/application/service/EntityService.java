@@ -144,6 +144,7 @@ public class EntityService {
                 .description(req.description())
                 .type(req.type() != null ? req.type() : EntityType.PERSON)
                 .fileKey(null) // TODO: set fileKey when uploading to B2
+                .workspaceIds(onl.continuum.continuum.infra.web.RequestWorkspace.forNewItem())
                 .createdAt(Instant.now())
                 .build();
         Entity saved = entityRepo.save(entity);
@@ -195,39 +196,36 @@ public class EntityService {
         // Validação de posse: garante que a entidade pertence ao usuário
         validateOwnership(userId, vaultId, entityId);
         
-        // Busca notas que contenham o ID desta entidade na lista de conexões
+        // Only notes visible in the active workspace (or all when none is active).
         return noteRepo.findByUserId(userId).stream()
                 .filter(n -> n.getEntityIds() != null && n.getEntityIds().contains(entityId))
+                .filter(n -> onl.continuum.continuum.infra.web.RequestWorkspace.matches(n.getWorkspaceIds()))
                 .collect(Collectors.toList());
     }
 
     public List<Entity> getConnections(String userId, String vaultId, String entityId) {
-        User user = getUser(userId);
-        // Validação de posse: garante que a entidade pertence ao usuário
+        getUser(userId);
         validateOwnership(userId, vaultId, entityId);
-        
+
         // Direct links
         List<String> directIds = entityLinkRepo.findByUserIdAndFromEntityId(userId, entityId)
                 .stream().map(EntityLink::getToEntityId).collect(Collectors.toList());
         directIds.addAll(entityLinkRepo.findByUserIdAndToEntityId(userId, entityId)
                 .stream().map(EntityLink::getFromEntityId).collect(Collectors.toList()));
 
-        // Note-based links
-        List<String> noteIdsWithThisEntity = noteRepo.findByUserId(userId).stream()
-                .filter(n -> n.getEntityIds() != null && n.getEntityIds().contains(entityId))
-                .map(Note::getId)
-                .collect(Collectors.toList());
-
+        // Note-based links, only through notes visible in the active workspace
         List<String> connectedEntityIds = noteRepo.findByUserId(userId).stream()
-                .filter(n -> noteIdsWithThisEntity.contains(n.getId()))
+                .filter(n -> n.getEntityIds() != null && n.getEntityIds().contains(entityId))
+                .filter(n -> onl.continuum.continuum.infra.web.RequestWorkspace.matches(n.getWorkspaceIds()))
                 .flatMap(n -> n.getEntityIds().stream())
                 .filter(id -> !id.equals(entityId))
                 .distinct()
                 .collect(Collectors.toList());
 
-        // Combine and deduplicate
         List<String> allIds = Stream.concat(directIds.stream(), connectedEntityIds.stream()).distinct().collect(Collectors.toList());
-        return entityRepo.findByIdInAndArchivedAtIsNull(allIds);
+        return entityRepo.findByIdInAndArchivedAtIsNull(allIds).stream()
+                .filter(e -> onl.continuum.continuum.infra.web.RequestWorkspace.matches(e.getWorkspaceIds()))
+                .collect(Collectors.toList());
     }
 
     @Caching(evict = {
@@ -287,10 +285,10 @@ public class EntityService {
         User user = getUser(userId);
         LocalDate effectiveStart = startDate != null ? startDate : getDefaultStartDate(user);
         LocalDate effectiveEnd = endDate != null ? endDate : onl.continuum.continuum.infra.web.RequestZone.today();
-        // Note: EntityRepository needs a method to filter by createdAt between start and end
-        // For now, assume we filter in memory or add to repo
-        Page<Entity> all = entityRepo.findByUserId(userId, pageable);
-        List<Entity> filtered = all.getContent().stream()
+        // Filter by workspace BEFORE paginating, so pages are never empty/truncated
+        // because of items that belong to another workspace.
+        List<Entity> filtered = entityRepo.findByUserId(userId).stream()
+                .filter(e -> onl.continuum.continuum.infra.web.RequestWorkspace.matches(e.getWorkspaceIds()))
                 .filter(e -> {
                     if (e.getCreatedAt() == null) return true;
                     // Resolve the creation day in the CALLER's timezone, otherwise entities
@@ -301,8 +299,12 @@ public class EntityService {
                     return (effectiveStart == null || !created.isBefore(effectiveStart)) &&
                            !created.isAfter(effectiveEnd);
                 })
+                .sorted(java.util.Comparator.comparing(Entity::getCreatedAt,
+                        java.util.Comparator.nullsLast(java.util.Comparator.reverseOrder())))
                 .collect(Collectors.toList());
-        return new org.springframework.data.domain.PageImpl<>(filtered, pageable, all.getTotalElements());
+        int from = (int) Math.min((long) pageable.getPageNumber() * pageable.getPageSize(), filtered.size());
+        int to = Math.min(from + pageable.getPageSize(), filtered.size());
+        return new org.springframework.data.domain.PageImpl<>(filtered.subList(from, to), pageable, filtered.size());
     }
     
     /**

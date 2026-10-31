@@ -116,6 +116,74 @@ public class EmailService {
         return layout(bundle.languageCode(), bundle.accountDeletedTitle(), bundle.accountDeletedSubtitle(), content, bundle.footerLine(), appUrl);
     }
 
+    public CompletableFuture<Boolean> sendMemory(String to, String name, String language,
+                                                 onl.continuum.continuum.application.service.MemoriesService.Memory memory) {
+        String[] s = memoryStrings(language, memory.milestone());
+        return send(to, s[0], buildMemoryEmail(name, language, memory));
+    }
+
+    public String buildMemoryEmail(String name, String language,
+                                   onl.continuum.continuum.application.service.MemoriesService.Memory m) {
+        LocaleBundle bundle = locale(language);
+        String[] s = memoryStrings(language, m.milestone());
+        String who = esc(name == null || name.isBlank() ? bundle.defaultName() : name);
+        StringBuilder content = new StringBuilder(paragraph(bundle.greeting() + " " + who + ","));
+        content.append(paragraph(esc(s[2])));
+        content.append("<div style=\"margin:8px 0 0;border:1px solid #222;border-radius:12px;overflow:hidden;background:#0B0B0B\">");
+        if (m.imageUrl() != null) {
+            content.append("<img src=\"").append(esc(m.imageUrl()))
+                    .append("\" alt=\"\" width=\"512\" style=\"display:block;width:100%;max-width:512px;height:auto;max-height:320px;object-fit:cover\">");
+        }
+        content.append("<div style=\"padding:20px\">")
+                .append("<p style=\"margin:0 0 6px;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:").append(MUTED_FOREGROUND).append("\">")
+                .append(esc(s[3])).append("</p>")
+                .append("<p style=\"margin:0 0 12px;font-size:18px;line-height:1.4;font-weight:700;color:").append(ACCENT).append("\">")
+                .append(esc(m.title().isBlank() ? "—" : m.title())).append("</p>");
+        if (!m.excerpt().isBlank()) {
+            content.append("<p style=\"margin:0;padding-left:12px;border-left:2px solid #444;font-size:14px;line-height:1.7;font-style:italic;color:")
+                    .append(FOREGROUND).append("\">“").append(esc(m.excerpt())).append("”</p>");
+        }
+        content.append("</div></div>");
+        content.append(button(appUrl + "/notes/" + m.noteId(), s[4]));
+        return layout(bundle.languageCode(), s[1], s[2], content.toString(), bundle.footerLine(), appUrl);
+    }
+
+    /** [subject, title, intro, milestone label, button]. */
+    private static String[] memoryStrings(String language, String milestone) {
+        String lang = language == null ? "en" : language.toLowerCase(Locale.ROOT);
+        boolean half = "m6".equals(milestone);
+        int years = 1;
+        if (milestone != null && milestone.startsWith("y")) {
+            try { years = Integer.parseInt(milestone.substring(1)); } catch (NumberFormatException ignored) { }
+        }
+        return switch (lang.length() >= 2 ? lang.substring(0, 2) : lang) {
+            case "pt" -> {
+                String when = half ? "há 6 meses" : (years == 1 ? "há 1 ano" : "há " + years + " anos");
+                yield new String[]{"Uma lembrança de " + when, "Você escreveu isso " + when,
+                        "Uma das suas notas mais ricas faz aniversário hoje. Vale a pena rever.",
+                        "Recordação · " + when, "Abrir nota"};
+            }
+            case "es" -> {
+                String when = half ? "hace 6 meses" : (years == 1 ? "hace 1 año" : "hace " + years + " años");
+                yield new String[]{"Un recuerdo de " + when, "Escribiste esto " + when,
+                        "Una de tus notas más ricas cumple años hoy. Vale la pena revisarla.",
+                        "Recuerdo · " + when, "Abrir nota"};
+            }
+            case "fr" -> {
+                String when = half ? "il y a 6 mois" : (years == 1 ? "il y a 1 an" : "il y a " + years + " ans");
+                yield new String[]{"Un souvenir d'" + when.substring(3), "Vous avez écrit ceci " + when,
+                        "L'une de vos notes les plus riches fête son anniversaire aujourd'hui.",
+                        "Souvenir · " + when, "Ouvrir la note"};
+            }
+            default -> {
+                String when = half ? "6 months ago" : (years == 1 ? "1 year ago" : years + " years ago");
+                yield new String[]{"A memory from " + when, "You wrote this " + when,
+                        "One of your richest notes has an anniversary today. Worth another look.",
+                        "Memory · " + when, "Open note"};
+            }
+        };
+    }
+
     public CompletableFuture<Boolean> send(String to, String subject, String html) {
         if (!isEnabled() || to == null || to.isBlank()) {
             log.warn("Email not sent (Resend disabled or no recipient): {}", subject);

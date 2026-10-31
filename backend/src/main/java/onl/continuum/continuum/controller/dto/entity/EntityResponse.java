@@ -17,7 +17,8 @@ public record EntityResponse(
     boolean favorite,
     boolean pinned,
     Instant createdAt,
-    List<LocalDate> trackingDates
+    List<LocalDate> trackingDates,
+    List<String> workspaceIds
 ) {
     public static EntityResponse from(Entity entity) {
         return from(entity, Integer.MAX_VALUE);
@@ -49,7 +50,8 @@ public record EntityResponse(
             entity.isFavorite(),
             entity.isPinned(),
             entity.getCreatedAt(),
-            dates
+            dates,
+            entity.getWorkspaceIds() != null ? entity.getWorkspaceIds() : Collections.emptyList()
         );
     }
 }

@@ -48,18 +48,18 @@ it("shows the project day editing hint when the info button is clicked", async (
 
 it("opens a past day and refreshes its total and cell after reducing time", async () => {
   renderHeatmap();
-  fireEvent.click(await screen.findByRole("button", { name: "2026-10-18, 1h 30m, 1 tm_entry_plural" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Sunday, October 18, 2026, 1h 30m, 1 tm_entry_plural" }));
   expect(await screen.findByText("tm_total_time_colon 01:30:00")).toBeInTheDocument();
   fireEvent.change(screen.getByRole("spinbutton", { name: "tm_edit_duration" }), { target: { value: "45" } });
   fireEvent.click(screen.getByRole("button", { name: "tm_save" }));
   await waitFor(() => expect(mocks.updateEntry).toHaveBeenCalledWith("entry-1", 2700));
   expect(await screen.findByText("tm_total_time_colon 00:45:00")).toBeInTheDocument();
-  await waitFor(() => expect(screen.getByRole("button", { name: "2026-10-18, 45m, 1 tm_entry_plural" })).toBeInTheDocument());
+  await waitFor(() => expect(screen.getByRole("button", { name: "Sunday, October 18, 2026, 45m, 1 tm_entry_plural", hidden: true })).toBeInTheDocument());
 });
 
 it("opens a past day and removes both its entry and heatmap count", async () => {
   renderHeatmap();
-  fireEvent.click(await screen.findByRole("button", { name: "2026-10-18, 1h 30m, 1 tm_entry_plural" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Sunday, October 18, 2026, 1h 30m, 1 tm_entry_plural" }));
   await screen.findByText("TIMER");
   fireEvent.click(screen.getByRole("button", { name: "tm_delete_entry" }));
   expect(await screen.findByText("tm_delete_entry_confirm_title")).toBeInTheDocument();
@@ -67,5 +67,5 @@ it("opens a past day and removes both its entry and heatmap count", async () => 
   await waitFor(() => expect(mocks.deleteEntry).toHaveBeenCalledWith("entry-1"));
   expect(await screen.findByText("tm_total_time_colon 00:00:00")).toBeInTheDocument();
   await waitFor(() => expect(screen.queryByText("TIMER")).not.toBeInTheDocument());
-  expect(screen.getByRole("button", { name: "2026-10-18, 0m, 0 tm_entry_plural" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Sunday, October 18, 2026, 0m, 0 tm_entry_plural", hidden: true })).toBeInTheDocument();
 });

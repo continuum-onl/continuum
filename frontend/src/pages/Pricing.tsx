@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAdaptiveCheckout } from "@/hooks/useAdaptiveCheckout";
 import { Loader2 } from "lucide-react";
 import { getVisitorPrice } from "@/lib/visitor-price";
+import { FREE_WORKSPACE_TOTAL_LIMIT } from "@/lib/workspace";
 
 type Row = { label: string; free: string | boolean; vision: string | boolean };
 
@@ -45,6 +46,7 @@ export default function Pricing() {
   const rows: Row[] = [
     { label: t("bill_row_notes"), free: "50", vision: t("bill_unlimited") },
     { label: t("bill_row_entities"), free: "20", vision: t("bill_unlimited") },
+    { label: t("bill_workspaces"), free: String(FREE_WORKSPACE_TOTAL_LIMIT), vision: t("bill_unlimited") },
     { label: t("bill_row_history_retention"), free: "30 days", vision: t("bill_unlimited") },
     { label: t("bill_row_upload_metadata"), free: "10 KB", vision: "2048 KB" },
     { label: t("bill_row_native_sync"), free: true, vision: true },

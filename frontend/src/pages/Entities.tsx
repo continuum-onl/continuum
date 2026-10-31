@@ -32,6 +32,7 @@ import { EntityTypeIcon } from "@/components/ui/entity-type-icon";
 import { FloatingCreateButton } from "@/components/ui/floating-create-button";
 import { ListSortMenu, type ListSortMode } from "@/components/ui/list-sort-menu";
 import { InsightSignalBadge } from "@/components/InsightSignal";
+import { formatLocalizedRelativeDate } from "@/lib/date-format";
 
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -60,17 +61,6 @@ const typeLabels: Record<string, string> = {
 const types = ["PERSON", "PROJECT", "TOPIC", "ORGANIZATION", "ACTIVITY"];
 
 /* ── Helpers ──────────────────────────────────────────────────────────── */
-
-function relativeDate(iso: string): string {
-  const d = new Date(iso);
-  const diff = Date.now() - d.getTime();
-  const day = 86400000;
-  if (diff < day) return "today";
-  if (diff < day * 2) return "yesterday";
-  if (diff < day * 7) return `${Math.floor(diff / day)}d ago`;
-  if (diff < day * 30) return `${Math.floor(diff / (day * 7))}w ago`;
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
 
 /* ── Row with long-press → select ────────────────────────────────────── */
 interface EntityRowProps {
@@ -112,7 +102,7 @@ function EntityRow({ selectMode, selected, onLongPress, onOpen, children }: Enti
 /* ── Page ─────────────────────────────────────────────────────────────── */
 
 export default function Entities() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { refresh: refreshUsage, applyUsageDelta } = usePlanGate();
@@ -415,7 +405,7 @@ export default function Entities() {
                         setSelectedIds((prev) => new Set(prev).add(entity.id));
                       }}
                       onOpen={() =>
-                        selectMode ? toggleSelect(entity.id) : navigate(`/entities/${entity.id}`)
+                        selectMode ? toggleSelect(entity.id) : window.setTimeout(() => navigate(`/entities/${entity.id}`), 100)
                       }
                     >
                       <ListRowContent
@@ -425,7 +415,7 @@ export default function Entities() {
                           <>
                             {t(`entities_type_${entity.type}`) ?? typeLabels[entity.type] ?? entity.type}
                             {" · "}
-                            {relativeDate(targetDate)}
+                            {formatLocalizedRelativeDate(targetDate, language)}
                             {entity.description ? ` · ${entity.description}` : ""}
                           </>
                         }

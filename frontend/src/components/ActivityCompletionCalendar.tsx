@@ -8,6 +8,7 @@ import {
   CalendarHeaderCell,
   Heading,
   Button as RACButton,
+  I18nProvider,
 } from "react-aria-components";
 import { getLocalTimeZone, today } from "@internationalized/date";
 import { ChevronLeftIcon, ChevronRightIcon } from "@radix-ui/react-icons";
@@ -15,6 +16,7 @@ import { ArrowRight } from "@/lib/heroicons";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { getDateLocale } from "@/lib/date-format";
 
 interface ActivityCompletionCalendarProps {
   entityId: string;
@@ -33,7 +35,7 @@ export function ActivityCompletionCalendar({
   onMarkComplete,
   onOpenDetail,
 }: ActivityCompletionCalendarProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   void entityId;
   void onMarkComplete;
 
@@ -47,6 +49,7 @@ export function ActivityCompletionCalendar({
 
   return (
     <div className="w-full border border-border/5 bg-foreground/[0.01] rounded-sm p-3 sm:p-4 md:p-5">
+      <I18nProvider locale={getDateLocale(language)}>
       <Cal aria-label={t("tm_activity_calendar_label")} className="w-full">
         <header className="flex items-center gap-1 pb-2 sm:pb-3">
           <RACButton
@@ -94,6 +97,7 @@ export function ActivityCompletionCalendar({
           </CalendarGridBody>
         </CalendarGrid>
       </Cal>
+      </I18nProvider>
 
       <div className="mt-3 flex items-center justify-between border-t border-border/5 pt-3">
         <div className="font-mono text-[11px] uppercase tracking-widest text-muted-foreground">

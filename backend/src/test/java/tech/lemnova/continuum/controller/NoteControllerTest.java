@@ -195,7 +195,7 @@ class NoteControllerTest {
                 String responseJson = objectMapper.writeValueAsString(
                     new NoteResponse("id", "userId", null, "title", List.of(), 
                         objectMapper.readTree("{}"), "Research", 
-                        java.time.Instant.now(), java.time.Instant.now())
+                        java.time.Instant.now(), java.time.Instant.now(), List.of())
                 );
                 
                 assertThat(responseJson).doesNotContain("vaultId");

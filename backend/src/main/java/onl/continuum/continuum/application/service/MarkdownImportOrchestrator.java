@@ -240,6 +240,7 @@ public class MarkdownImportOrchestrator {
                         .vaultId(vaultId)
                         .title(d.name().trim())
                         .type(parseEntityType(d.type()))
+                        .workspaceIds(onl.continuum.continuum.infra.web.RequestWorkspace.forNewItem())
                         .createdAt(Instant.now())
                         .build();
                 created = entityRepo.save(created);
@@ -294,6 +295,7 @@ public class MarkdownImportOrchestrator {
                         .vaultId(vaultId)
                         .title(name)
                         .type(spec.type())
+                        .workspaceIds(onl.continuum.continuum.infra.web.RequestWorkspace.forNewItem())
                         .createdAt(Instant.now())
                         .build();
                 created = entityRepo.save(created);
@@ -416,6 +418,7 @@ public class MarkdownImportOrchestrator {
                 note.setContent(contentStr);
                 note.setFileKey(fileKey);
                 note.setEntityIds(entityIds);
+                note.setWorkspaceIds(onl.continuum.continuum.infra.web.RequestWorkspace.forNewItem());
                 note.setCreatedAt(Instant.now());
                 note.setUpdatedAt(f.lastModified() == null || f.lastModified() == 0
                         ? Instant.now()

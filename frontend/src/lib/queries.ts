@@ -9,6 +9,7 @@ export const STALE = {
   list: 60_000, // notes/entities/vault lists
   detail: 30_000, // single note/entity
   insights: 5 * 60_000, // insights, metrics, dashboard score
+  HOUR: 60 * 60_000,
   preferences: 10 * 60_000, // account preferences, plan
 } as const;
 

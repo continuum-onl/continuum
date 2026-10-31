@@ -31,6 +31,7 @@ import { getPlanLimits, isUnlimited } from "@/lib/plan";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { resolveVaultBlob, invalidateVaultBlob } from "@/lib/vault-blob";
 import { queryClient } from "@/lib/query-client";
+import { formatLocalizedDate } from "@/lib/date-format";
 
 type Category = "images" | "audio" | "pdf" | "other";
 
@@ -95,7 +96,7 @@ function ImageThumb({ file, name, onDelete, onRename, onOpen }: {
   file: VaultFile; name: string; onDelete: (f: VaultFile) => void; onRename: (f: VaultFile) => void; onOpen: (f: VaultFile) => void;
 }) {
   const { url, error } = useBlobUrl(file.id);
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   return (
     <Card variant="subtle" className="group relative cursor-zoom-in overflow-hidden border-border/10 bg-background/80 aspect-square p-0 transition-colors hover:border-border/10" onClick={() => onOpen(file)}>
       {error ? (
@@ -188,6 +189,7 @@ function PdfCard({ file, name, onDelete, onRename, onOpen }: {
 function OtherFileRow({ file, name, onDelete, onRename }: {
   file: VaultFile; name: string; onDelete: (f: VaultFile) => void; onRename: (f: VaultFile) => void;
 }) {
+  const { language } = useLanguage();
   return (
     <div className="group relative flex items-center justify-between py-4 border-b border-border/10 hover:bg-foreground/[0.03] transition-colors">
       <div className="flex items-center gap-3 min-w-0">
@@ -195,7 +197,7 @@ function OtherFileRow({ file, name, onDelete, onRename }: {
         <div className="min-w-0">
           <p className="text-sm font-serif text-foreground/80 truncate group-hover:text-white transition-colors">{name}</p>
           <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
-            {formatSize(file.size)} &middot; {new Date(file.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+            {formatSize(file.size)} &middot; {formatLocalizedDate(file.createdAt, language, { month: "short", day: "numeric", year: "numeric" })}
           </p>
         </div>
       </div>

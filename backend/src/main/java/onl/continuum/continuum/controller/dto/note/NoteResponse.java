@@ -11,7 +11,7 @@ import java.util.List;
 
 public record NoteResponse(
     String id, String userId, String folderId, String title, List<String> entityIds, JsonNode content,
-    String type, boolean favorite, Instant createdAt, Instant updatedAt
+    String type, boolean favorite, Instant createdAt, Instant updatedAt, List<String> workspaceIds
 ) {
     private static final ObjectMapper mapper = new ObjectMapper();
 
@@ -21,7 +21,8 @@ public record NoteResponse(
             note.getId(), note.getUserId(), null,
             note.getTitle(), note.getEntityIds() != null ? note.getEntityIds() : Collections.emptyList(), contentNode,
             note.getType(), note.isFavorite(),
-            note.getCreatedAt(), note.getUpdatedAt());
+            note.getCreatedAt(), note.getUpdatedAt(),
+            note.getWorkspaceIds() != null ? note.getWorkspaceIds() : Collections.emptyList());
     }
 
     private static JsonNode parseContent(String content) {

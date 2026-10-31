@@ -30,7 +30,7 @@ public interface NoteRepository extends MongoRepository<Note, String> {
      * @param userId ID do usuário
      * @return Lista de notas com apenas os campos essenciais para o grafo
      */
-    @Query(value = "{ 'userId': ?0 }", fields = "{ 'id': 1, 'title': 1, 'entityIds': 1 }")
+    @Query(value = "{ 'userId': ?0 }", fields = "{ 'id': 1, 'title': 1, 'entityIds': 1, 'workspaceIds': 1 }")
     List<Note> findGraphDataByUserId(String userId);
     
     /**

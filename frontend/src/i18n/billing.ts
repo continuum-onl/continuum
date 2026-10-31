@@ -30,6 +30,7 @@ export const dict: Module = {
     bill_benefit_priority_support: "Priority email support",
     bill_notes: "Notes",
     bill_entities: "Entities",
+    bill_workspaces: "Workspaces",
     bill_vault: "Vault",
     bill_history: "History",
     bill_your_limits: "Your limits",
@@ -66,6 +67,7 @@ export const dict: Module = {
     bill_feature_vault_storage: "4 GB Vault storage",
     bill_feature_advanced_metrics: "Advanced metrics & insights",
     bill_feature_export_calendar: "Data export & calendar sync",
+    bill_feature_unlimited_workspaces: "Unlimited workspaces",
 
     bill_support_help_contact: "Help & Contact",
     bill_support_center: "Support center",
@@ -130,6 +132,7 @@ export const dict: Module = {
     bill_benefit_priority_support: "Soporte prioritario por correo",
     bill_notes: "Notas",
     bill_entities: "Entidades",
+    bill_workspaces: "Espacios",
     bill_vault: "Bóveda",
     bill_history: "Historial",
     bill_your_limits: "Tus límites",
@@ -166,6 +169,7 @@ export const dict: Module = {
     bill_feature_vault_storage: "4 GB de almacenamiento en la bóveda",
     bill_feature_advanced_metrics: "Métricas e información avanzadas",
     bill_feature_export_calendar: "Exportación de datos y sincronización de calendario",
+    bill_feature_unlimited_workspaces: "Espacios ilimitados",
 
     bill_support_help_contact: "Ayuda y contacto",
     bill_support_center: "Centro de soporte",
@@ -230,6 +234,7 @@ export const dict: Module = {
     bill_benefit_priority_support: "Suporte prioritário por e-mail",
     bill_notes: "Notas",
     bill_entities: "Entidades",
+    bill_workspaces: "Espaços",
     bill_vault: "Cofre",
     bill_history: "Histórico",
     bill_your_limits: "Seus limites",
@@ -266,6 +271,7 @@ export const dict: Module = {
     bill_feature_vault_storage: "4 GB de armazenamento no cofre",
     bill_feature_advanced_metrics: "Métricas e insights avançados",
     bill_feature_export_calendar: "Exportação de dados e sincronização de calendário",
+    bill_feature_unlimited_workspaces: "Espaços ilimitados",
 
     bill_support_help_contact: "Ajuda e contato",
     bill_support_center: "Central de suporte",
@@ -330,6 +336,7 @@ export const dict: Module = {
     bill_benefit_priority_support: "Support prioritaire par e-mail",
     bill_notes: "Notes",
     bill_entities: "Entités",
+    bill_workspaces: "Espaces",
     bill_vault: "Coffre",
     bill_history: "Historique",
     bill_your_limits: "Vos limites",
@@ -366,6 +373,7 @@ export const dict: Module = {
     bill_feature_vault_storage: "4 Go de stockage dans le coffre",
     bill_feature_advanced_metrics: "Statistiques et analyses avancées",
     bill_feature_export_calendar: "Export des données et synchronisation du calendrier",
+    bill_feature_unlimited_workspaces: "Espaces illimités",
 
     bill_support_help_contact: "Aide et contact",
     bill_support_center: "Centre d'assistance",

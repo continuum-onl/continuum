@@ -31,6 +31,7 @@ import { LanguageSelector } from "@/components/LanguageSelector";
 import { AppThemeSelector } from "@/components/AppThemeSelector";
 import { useExtrasText, useDeletionStatus } from "@/components/AccountExtras";
 import { useQueryClient } from "@tanstack/react-query";
+import { formatLocalizedDate } from "@/lib/date-format";
 
 /* ------------------------------------------------------------------ */
 /* Constants                                                           */
@@ -249,9 +250,8 @@ export default function SettingsPage() {
   /* Derived */
 
   const deletionPending = !!(del?.scheduled || del?.deletionRequestedAt);
-  const dateLocale = { en: "en-US", es: "es-ES", pt: "pt-BR", fr: "fr-FR" }[language];
   const deletionDescription = del?.purgeAt
-    ? x.delDesc.replace("{d}", new Intl.DateTimeFormat(dateLocale).format(new Date(del.purgeAt)))
+    ? x.delDesc.replace("{d}", formatLocalizedDate(del.purgeAt, language))
     : x.delTitle;
 
   return (

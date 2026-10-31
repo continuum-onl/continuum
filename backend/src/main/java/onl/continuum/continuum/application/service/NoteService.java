@@ -134,6 +134,7 @@ public class NoteService {
         note.setFileKey(fileKey);
         note.setType(req.type());
         note.setEntityIds(entityIds);
+        note.setWorkspaceIds(onl.continuum.continuum.infra.web.RequestWorkspace.forNewItem());
         note.setCreatedAt(Instant.now());
         note.setUpdatedAt(Instant.now());
 
@@ -587,6 +588,7 @@ public class NoteService {
 
         List<BacklinkMentionDTO> linkedMentions = noteRepo.findByUserId(userId).stream()
                 .filter(n -> !n.getId().equals(noteId))
+                .filter(n -> onl.continuum.continuum.infra.web.RequestWorkspace.matches(n.getWorkspaceIds()))
                 .filter(n -> n.getEntityIds() != null && n.getEntityIds().stream().anyMatch(filterIds::contains))
                 .map(n -> new BacklinkMentionDTO(n.getId(), n.getTitle(), extractSnippet(n, vaultId)))
                 .collect(Collectors.toList());

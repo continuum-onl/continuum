@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { CommandPalette } from "@/components/CommandPalette";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,6 +10,7 @@ import {
   Menu,
   GlobeAlt,
   Clock,
+  Calendar,
   Lock,
   BarChart3,
   FolderOpen,
@@ -33,6 +34,7 @@ import {
 import { SessionNavBar } from "@/components/ui/session-nav-bar";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { VaultPicker } from "@/components/AccountExtras";
+import { WorkspaceSubmenu, WorkspaceSwitcher } from "@/components/WorkspaceSwitcher";
 import { OfflineStatus } from "@/components/offline/OfflineStatus";
 
 // Primary tabs shown in the bottom navigation bar on mobile.
@@ -47,6 +49,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const [workspaceMenuExpanded, setWorkspaceMenuExpanded] = useState(false);
   const isGraphPage = location.pathname.startsWith("/graph");
   const isNoteEditor = /^\/notes\/[^/]+$/.test(location.pathname);
 
@@ -56,6 +59,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
       <VaultPicker />
       {/* Desktop hover-expand sidebar */}
       <SessionNavBar />
+      {/* Hosts the create-workspace dialog opened from the mobile More menu. */}
+      <div className="hidden"><WorkspaceSwitcher listenForCreate /></div>
 
       <main className="min-w-0 flex-1 overflow-visible bg-background lg:ml-[3.25rem] lg:overflow-auto">
         {children}
@@ -106,7 +111,12 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                 }}
               </NavLink>
             ))}
-            <DropdownMenu modal={false}>
+            <DropdownMenu
+              modal={false}
+              onOpenChange={(open) => {
+                if (!open) setWorkspaceMenuExpanded(false);
+              }}
+            >
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
@@ -118,12 +128,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   </span>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent side="top" align="end" className="mb-2 w-56 bg-muted/60 backdrop-blur-[6px]">
+              <DropdownMenuContent side="top" align="end" className="relative mb-2 w-56 overflow-hidden rounded-xl bg-muted/60 backdrop-blur-[6px]">
+                <WorkspaceSubmenu
+                  expanded={workspaceMenuExpanded}
+                  onExpandedChange={setWorkspaceMenuExpanded}
+                />
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => navigate("/projects")}>
-                  <FolderOpen className="mr-2 h-4 w-4" /> {t("nav_projects")}
+                  <Clock className="mr-2 h-4 w-4" /> {t("nav_projects")}
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => navigate("/activities")}>
-                  <Clock className="mr-2 h-4 w-4" /> {t("nav_activities")}
+                  <Calendar className="mr-2 h-4 w-4" /> {t("nav_activities")}
                 </DropdownMenuItem>
                 <DropdownMenuItem onSelect={() => navigate("/graph")}>
                   <GlobeAlt className="mr-2 h-4 w-4" /> {t("nav_graph")}

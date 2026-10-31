@@ -13,6 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { getDateFnsLocale } from '@/lib/date-format';
 
 interface TimeAnalyticsCalendarProps {
   projectId?: string; // Filter analytics by project
@@ -25,6 +27,8 @@ interface TimeAnalyticsCalendarProps {
  * Can be filtered by projectId for project-specific analytics
  */
 export function TimeAnalyticsCalendar({ projectId, onDayClick }: TimeAnalyticsCalendarProps) {
+  const { language } = useLanguage();
+  const dateFnsLocale = getDateFnsLocale(language);
   const {
     currentDate,
     canAccessAnalytics,
@@ -35,17 +39,17 @@ export function TimeAnalyticsCalendar({ projectId, onDayClick }: TimeAnalyticsCa
     navigateMonth,
     goToToday,
     getDayData
-  } = useTimeAnalytics();
+  } = useTimeAnalytics({ locale: dateFnsLocale });
 
   // Generate full calendar grid (including days from prev/next month for proper alignment)
   const fullCalendarGrid = useMemo(() => {
     const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
     const monthEnd = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-    const calendarStart = startOfWeek(monthStart);
-    const calendarEnd = endOfWeek(monthEnd);
+    const calendarStart = startOfWeek(monthStart, { locale: dateFnsLocale });
+    const calendarEnd = endOfWeek(monthEnd, { locale: dateFnsLocale });
 
     return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-  }, [currentDate]);
+  }, [currentDate, dateFnsLocale]);
 
   const formatDuration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
@@ -88,7 +92,7 @@ export function TimeAnalyticsCalendar({ projectId, onDayClick }: TimeAnalyticsCa
             Monthly Summary
           </h3>
           <Badge variant="secondary">
-            {format(currentDate, 'MMM yyyy')}
+            {format(currentDate, 'MMM yyyy', { locale: dateFnsLocale })}
           </Badge>
         </div>
 
@@ -126,7 +130,7 @@ export function TimeAnalyticsCalendar({ projectId, onDayClick }: TimeAnalyticsCa
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Calendar className="w-6 h-6" />
-            {format(currentDate, 'MMMM yyyy')}
+            {format(currentDate, 'MMMM yyyy', { locale: dateFnsLocale })}
           </h2>
           <div className="flex gap-2">
             <Button
@@ -156,9 +160,9 @@ export function TimeAnalyticsCalendar({ projectId, onDayClick }: TimeAnalyticsCa
         {/* Calendar Grid */}
         <div className="grid grid-cols-7 gap-1">
           {/* Day headers */}
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <div key={day} className="p-2 text-center text-sm font-medium text-zinc-500">
-              {day}
+          {fullCalendarGrid.slice(0, 7).map((date) => (
+            <div key={date.toISOString()} className="p-2 text-center text-sm font-medium text-zinc-500">
+              {format(date, "EEE", { locale: dateFnsLocale })}
             </div>
           ))}
 
@@ -180,7 +184,7 @@ export function TimeAnalyticsCalendar({ projectId, onDayClick }: TimeAnalyticsCa
                 onClick={() => dayData && onDayClick?.(dayData)}
               >
                 <div className="text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-1">
-                  {format(date, 'd')}
+                  {format(date, 'd', { locale: dateFnsLocale })}
                 </div>
 
                 {isLoading ? (

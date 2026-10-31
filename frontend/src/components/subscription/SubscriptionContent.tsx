@@ -11,6 +11,8 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { SubscriptionScreen } from "@/components/ui/subscription-screen";
 import type { Plan } from "@/types";
 import { isUnlimited } from "@/lib/plan";
+import { FREE_WORKSPACE_TOTAL_LIMIT } from "@/lib/workspace";
+import { useWorkspaces } from "@/components/WorkspaceSwitcher";
 
 interface SubInfo {
   plan?: string;
@@ -31,6 +33,7 @@ export default function SubscriptionContent({ open, onClose }: SubscriptionConte
   const { toast } = useToast();
   const { t } = useLanguage();
   const { theme } = useTheme();
+  const workspacesQuery = useWorkspaces(open);
   const [sub, setSub] = useState<SubInfo | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -46,6 +49,7 @@ export default function SubscriptionContent({ open, onClose }: SubscriptionConte
   const visionBenefits = [
     t("bill_benefit_unlimited_notes_entities"),
     t("bill_benefit_unlimited_history"),
+    t("bill_benefit_unlimited_workspaces"),
     t("bill_benefit_storage"),
     t("bill_benefit_data_export"),
     t("bill_benefit_priority_support"),
@@ -100,6 +104,13 @@ export default function SubscriptionContent({ open, onClose }: SubscriptionConte
   const planDetails = !isPro ? [
     { label: t("bill_notes"), value: formatUsageLimit(usage?.notesCount, user?.maxNotes) },
     { label: t("bill_entities"), value: formatUsageLimit(usage?.entitiesCount, user?.maxEntities) },
+    {
+      label: t("bill_workspaces"),
+      value: formatUsageLimit(
+        workspacesQuery.isSuccess ? workspacesQuery.data.length + 1 : undefined,
+        FREE_WORKSPACE_TOTAL_LIMIT,
+      ),
+    },
     { label: t("bill_history"), value: formatLimit(user?.historyDays, "d") },
     { label: t("bill_vault"), value: formatUsageLimit(usage?.vaultSizeMB, user?.maxVaultSizeMB, " MB") },
   ] : undefined;

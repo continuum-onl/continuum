@@ -349,7 +349,7 @@ export function TimerWidget({
       </div>
 
       {/* TODAY SECTION — Activity stat grid */}
-      <div className="mt-5 grid grid-cols-1 divide-y divide-border/10 border-y border-border/10 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+      <div className="mt-5 grid grid-cols-3 divide-x divide-border/10 border-y border-border/10">
         <SummaryStat label={t("tm_today")} value={formatSeconds(today.todaySeconds + (isRunning ? currentElapsed : 0))} />
         <SummaryStat label={t("tm_sessions")} value={today.todayEntriesCount} />
         <SummaryStat label={t("tm_avg")} value={formatSeconds(today.avgEntrySeconds)} />

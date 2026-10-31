@@ -43,6 +43,8 @@ public class Entity {
     private boolean pinned;
     private List<LocalDate> trackingDates;
     private String fileKey;
+    @Indexed
+    private List<String> workspaceIds;
     private Instant createdAt;
     private Instant archivedAt;  // Added for soft-deletes
 

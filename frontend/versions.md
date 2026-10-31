@@ -4,7 +4,18 @@ Every notable change to Continuum, from the first release to the latest version.
 
 ---
 
-v1.3.4  Oct 21, 2026
+v1.4.0 — Oct 31, 2026
+
+- Workspaces: Added workspace system to separate notes, entities, and projects into isolated environments (BETA).
+- Workspaces: Notes and entities can be assigned to one or multiple workspaces, with automatic inheritance during creation.
+- Workspaces: Added unified "All" view to browse all knowledge seamlessly across spaces.
+- Workspaces: Isolated 3D Knowledge Graph, global search, @mention autocomplete, backlinks, insights, and daily recall by active workspace.
+- Workspaces: Safe workspace deletion reassigns exclusive items back to Main with zero data loss.
+- UI: Enchance entity details screen, Enchance entity creation button.
+
+---
+
+v1.3.4 — Oct 21, 2026
 
 - Import: Preserved source file modification dates and automatically imported and linked supported Vault files referenced by Markdown notes.
 - Settings: Consolidated data export into the full ZIP backup download.

@@ -23,9 +23,11 @@ public class TimeZoneFilter extends OncePerRequestFilter {
         try {
             ZoneId zone = RequestZone.parse(request.getHeader("X-Timezone"), request.getHeader("X-TZ-Offset"));
             RequestZone.set(zone);
+            RequestWorkspace.set(request.getHeader("X-Workspace-Id"));
             chain.doFilter(request, response);
         } finally {
             RequestZone.clear();
+            RequestWorkspace.clear();
         }
     }
 }

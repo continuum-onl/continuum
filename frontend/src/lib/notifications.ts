@@ -56,3 +56,22 @@ export function getUsageWarnings(usage: UserUsage, limits: CurrentPlanLimits) {
     return percent >= 80 ? [{ metric, percent: Math.min(100, percent) }] : [];
   });
 }
+
+/** Metrics the user was already warned about; persisted so the warning shows once,
+ *  not on every app open. A metric is forgotten when usage drops back below 80%. */
+const warnedKey = (userId: string) => `continuum:usage-warned:${userId}`;
+
+export function loadWarnedMetrics(userId: string): UsageMetric[] {
+  try {
+    const raw = JSON.parse(localStorage.getItem(warnedKey(userId)) ?? "[]");
+    return Array.isArray(raw) ? raw.filter((m): m is UsageMetric => m === "notes" || m === "entities" || m === "vault") : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveWarnedMetrics(userId: string, metrics: UsageMetric[]) {
+  try {
+    localStorage.setItem(warnedKey(userId), JSON.stringify(metrics));
+  } catch { /* ignore */ }
+}

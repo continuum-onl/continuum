@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts";
 
 import { metricsApi } from "@/lib/api";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { formatLocalizedDate } from "@/lib/date-format";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChartContainer } from "@/components/ui/chart";
 import { Button } from "@/components/ui/button";
@@ -36,15 +37,16 @@ type Insights = {
 
 const COMPONENT_KEYS = ["notes", "entities", "connections", "freshness", "continuity", "daily"] as const;
 
-const fmtDate = (iso: string) =>
-  new Date(`${iso.slice(0, 10)}T00:00:00`).toLocaleDateString(undefined, { day: "2-digit", month: "short" });
-
 export function ScoreEvolutionSection({
   onScoreChange,
 }: {
   onScoreChange?: (score: number) => void;
 }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const fmtDate = useCallback(
+    (iso: string) => formatLocalizedDate(`${iso.slice(0, 10)}T12:00:00`, language, { day: "2-digit", month: "short" }),
+    [language],
+  );
   const [timeRange, setTimeRange] = useState<TimeRange>("14d");
   const [forceHideTooltip, setForceHideTooltip] = useState(false);
 
@@ -69,7 +71,7 @@ export function ScoreEvolutionSection({
     return sliced
       .filter((_, i) => i % step === 0 || i === sliced.length - 1)
       .map((p) => ({ ...p, label: fmtDate(p.date) }));
-  }, [points, timeRange]);
+  }, [points, timeRange, fmtDate]);
 
   const hasData = points.length > 0;
 

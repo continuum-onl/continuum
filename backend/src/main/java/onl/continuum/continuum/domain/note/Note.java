@@ -27,6 +27,8 @@ public class Note {
     private String type;
     @Indexed
     private boolean favorite = false;
+    @Indexed
+    private List<String> workspaceIds;
     private Instant createdAt;
     private Instant updatedAt;
 
@@ -45,6 +47,9 @@ public class Note {
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
+
+    public List<String> getWorkspaceIds() { return workspaceIds; }
+    public void setWorkspaceIds(List<String> workspaceIds) { this.workspaceIds = workspaceIds; }
 
     public boolean isFavorite() { return favorite; }
     public void setFavorite(boolean favorite) { this.favorite = favorite; }

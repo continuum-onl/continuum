@@ -46,6 +46,7 @@ import { ListRowContent } from "@/components/ui/list-row-content";
 import { StickyNote } from "@/lib/heroicons";
 import { FloatingCreateButton } from "@/components/ui/floating-create-button";
 import { ListSortMenu, type ListSortMode } from "@/components/ui/list-sort-menu";
+import { formatLocalizedDate, formatLocalizedRelativeDate } from "@/lib/date-format";
 
 
 import SmoothDrawer from "@/components/ui/smooth-drawer";
@@ -119,10 +120,10 @@ function monthKey(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function formatMonth(key: string) {
+function formatMonth(key: string, language: "en" | "es" | "pt" | "fr") {
   const [y, m] = key.split("-").map(Number);
   const d = new Date(y, m - 1, 1);
-  return d.toLocaleString("en-US", { month: "long", year: "numeric" }).toUpperCase();
+  return formatLocalizedDate(d, language, { month: "long", year: "numeric" }).toUpperCase();
 }
 
 function sortLabels(t: (key: string) => string) {
@@ -132,17 +133,6 @@ function sortLabels(t: (key: string) => string) {
     az: t("list_sort_az"),
     za: t("list_sort_za"),
   };
-}
-
-function relativeDate(iso: string): string {
-  const d = new Date(iso);
-  const diff = Date.now() - d.getTime();
-  const day = 86400000;
-  if (diff < day) return "today";
-  if (diff < day * 2) return "yesterday";
-  if (diff < day * 7) return `${Math.floor(diff / day)}d ago`;
-  if (diff < day * 30) return `${Math.floor(diff / (day * 7))}w ago`;
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 /* ── Sidebar nav item ─────────────────────────────────────────────────── */
@@ -215,7 +205,7 @@ function NoteRow({ selectMode, selected, onLongPress, onOpen, children }: NoteRo
 /* ── Page ─────────────────────────────────────────────────────────────── */
 
 export default function Notes() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { loading: authLoading } = useRequireAuth();
@@ -993,7 +983,7 @@ export default function Notes() {
                           {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                           {key === "az" || key === "za"
                             ? t(key === "az" ? "list_sort_az" : "list_sort_za")
-                            : formatMonth(key)}
+                            : formatMonth(key, language)}
                         </span>
                         {key !== "az" && key !== "za" && (
                           <span className="font-mono text-[10px] text-muted-foreground tabular-nums">
@@ -1038,12 +1028,12 @@ export default function Notes() {
                                     meta={activeSearch ? (
                                       <>
                                         {note.type ? `${note.type} · ` : ""}
-                                        {relativeDate(targetDate)}
+                                        {formatLocalizedRelativeDate(targetDate, language)}
                                         {preview ? " · " : ""}
                                         {preview}
                                       </>
                                     ) : (
-                                      <>{note.type ? `${note.type} · ` : ""}{relativeDate(targetDate)}</>
+                                      <>{note.type ? `${note.type} · ` : ""}{formatLocalizedRelativeDate(targetDate, language)}</>
                                     )}
                                   />
 

@@ -42,6 +42,7 @@ public class NoteController {
     @Operation(summary = "List all notes", description = "Retrieves a list of all notes for the authenticated user")
     public ResponseEntity<List<NoteSummaryDTO>> list(@AuthenticationPrincipal CustomUserDetails user) {
         List<NoteSummaryDTO> summaries = noteService.listByUser().stream()
+            .filter(n -> onl.continuum.continuum.infra.web.RequestWorkspace.matches(n.getWorkspaceIds()))
             .map(NoteSummaryDTO::from).toList();
         return ResponseEntity.ok(summaries);
     }

@@ -15,7 +15,7 @@ import {
   UserCircle,
   Lock,
   Clock,
-  FolderOpen,
+  Calendar,
   BarChart3,
   Squares2x2,
 } from "@/lib/heroicons";
@@ -24,7 +24,7 @@ import {
   DocumentTextIcon as StickyNoteSolid,
   TagIcon as TagSolid,
   LockClosedIcon as LockSolid,
-  FolderOpenIcon as FolderOpenSolid,
+  CalendarDaysIcon as CalendarSolid,
   ClockIcon as ClockSolid,
   ChartBarIcon as BarChart3Solid,
   GlobeAltIcon as GlobeAltSolid,
@@ -33,6 +33,7 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { WorkspaceSwitcher } from "@/components/WorkspaceSwitcher";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -69,8 +70,8 @@ const primaryNav: NavItem[] = [
 ];
 
 const trackingNav: NavItem[] = [
-  { to: "/projects", label: "nav_projects", icon: FolderOpen, iconSolid: FolderOpenSolid },
-  { to: "/activities", label: "nav_activities", icon: Clock, iconSolid: ClockSolid },
+  { to: "/projects", label: "nav_projects", icon: Clock, iconSolid: ClockSolid },
+  { to: "/activities", label: "nav_activities", icon: Calendar, iconSolid: CalendarSolid },
 ];
 
 const exploreNav: NavItem[] = [
@@ -119,6 +120,7 @@ function SidebarLink({
 export function SessionNavBar() {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [workspacePopupOpen, setWorkspacePopupOpen] = useState(false);
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -139,7 +141,10 @@ export function SessionNavBar() {
       variants={sidebarVariants}
       transition={transitionProps}
       onMouseEnter={() => setIsCollapsed(false)}
-      onMouseLeave={() => setIsCollapsed(true)}
+      onMouseLeave={() => {
+        setIsCollapsed(true);
+        setWorkspacePopupOpen(false);
+      }}
     >
       <div className="relative z-40 flex h-full w-full flex-col text-sidebar-foreground">
         {/* Brand / search trigger */}
@@ -211,6 +216,13 @@ export function SessionNavBar() {
 
           {/* Footer */}
           <div className="flex flex-col gap-1 border-t border-sidebar-border/10 p-2">
+            <WorkspaceSwitcher
+              compact={isCollapsed}
+              className={isCollapsed ? "" : "w-full max-w-none"}
+              open={workspacePopupOpen}
+              onOpenChange={setWorkspacePopupOpen}
+              sidebarPopup
+            />
             <div className="flex items-center gap-2">
               <button
                 type="button"
@@ -224,7 +236,6 @@ export function SessionNavBar() {
                   {!isCollapsed && <span className="truncate text-sm font-medium normal-case tracking-normal">{display}</span>}
                 </motion.span>
               </button>
-
               {/* No logout button here — profile page handles sign out */}
             </div>
           </div>

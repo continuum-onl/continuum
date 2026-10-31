@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns';
 import { metricsApi } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import type { Locale } from 'date-fns';
+import { enUS } from 'date-fns/locale';
 
 interface DayData {
   date: Date;
@@ -19,13 +21,14 @@ interface DayData {
 interface UseTimeAnalyticsOptions {
   initialDate?: Date;
   projectId?: string; // Filter by project
+  locale?: Locale;
 }
 
 /**
  * Hook for managing time analytics calendar data and state
  * Can filter by specific project if projectId is provided
  */
-export function useTimeAnalytics({ initialDate = new Date(), projectId }: UseTimeAnalyticsOptions = {}) {
+export function useTimeAnalytics({ initialDate = new Date(), projectId, locale = enUS }: UseTimeAnalyticsOptions = {}) {
   const [currentDate, setCurrentDate] = useState(initialDate);
   const { user } = useAuth();
 
@@ -160,7 +163,7 @@ export function useTimeAnalytics({ initialDate = new Date(), projectId }: UseTim
     refetch,
 
     // Computed
-    currentMonthName: format(currentDate, 'MMMM yyyy'),
+    currentMonthName: format(currentDate, 'MMMM yyyy', { locale }),
     hasData: usageData && usageData.length > 0
   };
 }

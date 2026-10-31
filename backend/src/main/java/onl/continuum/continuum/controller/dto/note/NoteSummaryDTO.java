@@ -13,7 +13,8 @@ public record NoteSummaryDTO(
     List<String> entityIds,
     boolean favorite,
     Instant createdAt,
-    Instant updatedAt
+    Instant updatedAt,
+    List<String> workspaceIds
 ) {
     public static NoteSummaryDTO from(Note note) {
         return new NoteSummaryDTO(
@@ -24,7 +25,8 @@ public record NoteSummaryDTO(
             note.getEntityIds() != null ? note.getEntityIds() : Collections.emptyList(),
             note.isFavorite(),
             note.getCreatedAt(),
-            note.getUpdatedAt()
+            note.getUpdatedAt(),
+            note.getWorkspaceIds() != null ? note.getWorkspaceIds() : Collections.emptyList()
         );
     }
 }

@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FireIcon,
@@ -7,16 +7,13 @@ import {
   ArrowTrendingUpIcon,
   ArrowPathIcon,
   MagnifyingGlassIcon,
-  AdjustmentsHorizontalIcon,
 } from "@heroicons/react/24/outline";
 import AppLayout from "@/components/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { FilterChips } from "@/components/ui/filter-chips";
-import { FitText } from "@/components/ui/fit-text";
 import { ListRowContent } from "@/components/ui/list-row-content";
 import { EntityTypeIcon } from "@/components/ui/entity-type-icon";
 import { StickyNote } from "@/lib/heroicons";
@@ -25,9 +22,9 @@ import { InsightBadge } from "@/components/InsightSignal";
 
 import { cn } from "@/lib/utils";
 import { insightsApi } from "@/lib/api";
+import type { MemoryItem } from "@/lib/api";
 import { useCachedResource } from "@/hooks/useCachedResource";
 import { qk, STALE } from "@/lib/queries";
-import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 /* ── Types ────────────────────────────────────────────────────────────── */
@@ -127,43 +124,6 @@ function StatChip({ children }: { children: ReactNode }) {
   );
 }
 
-/* ── Sidebar Nav Item ─────────────────────────────────────────────────── */
-
-interface NavItemProps {
-  label: string;
-  count: number;
-  active: boolean;
-  onClick: () => void;
-}
-
-function NavItem({ label, count, active, onClick }: NavItemProps) {
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      className={cn(
-        "group flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-[13px] normal-case transition-colors",
-        active ? "text-foreground" : "text-muted-foreground hover:text-muted-foreground"
-      )}
-      onClick={onClick}
-    >
-      <span className="flex items-center gap-2">
-        <span
-          aria-hidden
-          className={cn(
-            "h-px w-3 transition-all",
-            active ? "bg-foreground w-5" : "bg-foreground/20 group-hover:bg-foreground/40"
-          )}
-        />
-        {label}
-      </span>
-      <span className={cn("font-mono text-[10px] tabular-nums", active ? "text-muted-foreground" : "text-muted-foreground")}>
-        {count}
-      </span>
-    </Button>
-  );
-}
-
 /* ── Linha do Insight ───────────────────────────────────────────────── */
 
 function InsightRow({ item }: { item: InsightItem }) {
@@ -213,13 +173,97 @@ function InsightRow({ item }: { item: InsightItem }) {
   );
 }
 
+function memoryMilestoneLabel(
+  item: MemoryItem,
+  t: (key: string, vars?: Record<string, number>) => string,
+) {
+  const milestone = item.milestone.toLowerCase();
+  if (milestone === "m1" || milestone === "30d") return t("ins_milestone_1m");
+  if (milestone === "m3" || milestone === "90d") return t("ins_milestone_3m");
+  if (milestone === "m6" || milestone === "180d") return t("ins_milestone_6m");
+  if (milestone === "y1" || milestone === "365d") return t("ins_milestone_1y");
+
+  const yearMatch = /^(?:y(\d+)|(\d+)y)$/.exec(milestone);
+  const years = yearMatch ? Number(yearMatch[1] ?? yearMatch[2]) : Math.floor(item.daysAgo / 365);
+  if (years <= 1) return t("ins_milestone_1y");
+  return t("ins_milestone_ny", { years });
+}
+
+function MemoryCard({ item, onOpen }: { item: MemoryItem; onOpen: () => void }) {
+  const { t } = useLanguage();
+  const [imageVisible, setImageVisible] = useState(Boolean(item.imageUrl));
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group flex min-w-[260px] flex-col overflow-hidden rounded-xl border border-border/10 bg-card text-left transition-colors hover:border-border/25 hover:bg-accent/30 sm:min-w-0"
+      aria-label={`${t("ins_memories_view_note")}: ${item.title}`}
+    >
+      {imageVisible && item.imageUrl && (
+        <img
+          src={item.imageUrl}
+          alt=""
+          className="aspect-[16/9] w-full object-cover"
+          onError={() => setImageVisible(false)}
+        />
+      )}
+      <div className="flex flex-1 flex-col items-start p-4">
+        <Badge variant="outline" className="mb-3 rounded-sm border-border/10 bg-transparent font-mono text-[10px] text-muted-foreground">
+          {memoryMilestoneLabel(item, t)}
+        </Badge>
+        <h3 className="mb-2 font-serif text-lg font-semibold leading-snug text-foreground">
+          {item.title || t("ins_untitled")}
+        </h3>
+        <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+          {item.excerpt}
+        </p>
+        <span className="mt-4 text-xs text-foreground/70 group-hover:text-foreground">
+          {t("ins_memories_view_note")}
+        </span>
+      </div>
+    </button>
+  );
+}
+
+function MemoriesSection() {
+  const { t } = useLanguage();
+  const navigate = useNavigate();
+  const memoriesQuery = useCachedResource<MemoryItem[]>(
+    qk.insights("memories"),
+    async () => (await insightsApi.memories()).data,
+    { staleTime: STALE.HOUR },
+  );
+  const memories = memoriesQuery.data;
+
+  if (!memories?.length) return null;
+
+  return (
+    <section className="mb-8 border-b border-border/10 pb-8" aria-labelledby="ins-memories-title">
+      <div className="mb-4">
+        <h2 id="ins-memories-title" className="font-serif text-2xl text-foreground">
+          {t("ins_memories_title")}
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">{t("ins_memories_subtitle")}</p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {memories.map((item) => (
+          <MemoryCard
+            key={item.noteId}
+            item={item}
+            onOpen={() => navigate(`/notes/${item.noteId}`)}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /* ── Componente Principal ─────────────────────────────────────────────── */
 
 export default function Insights() {
   const { t } = useLanguage();
   const navigate = useNavigate();
-  const { toast } = useToast();
-
   const insightsQuery = useCachedResource<{
     hotNotes: NoteInsight[];
     forgottenNotes: NoteInsight[];
@@ -253,8 +297,6 @@ export default function Insights() {
   
   const [view, setView] = useState<View>("all");
   const [search, setSearch] = useState("");
-  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
-
   const load = async (_silent = false) => {
     await insightsQuery.refetch();
   };
@@ -354,65 +396,36 @@ export default function Insights() {
     });
   }, [insights, search, view]);
 
-  const counts = {
-    all: insights.length,
-    hotNotes: hotNotes.length,
-    hotEntities: hotEntities.length,
-    worthRevisiting: forgottenNotes.length,
-    forgottenGems: forgottenEntities.length,
-  };
+  const counts = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    const matchesSearch = (item: InsightItem) => {
+      if (!query) return true;
+      return `${item.title} ${item.subtitle} ${item.badge}`.toLowerCase().includes(query);
+    };
+    const searchFiltered = query ? insights.filter(matchesSearch) : insights;
 
-  const SidebarContent = (
-    <div className="space-y-7">
-      <div>
-        <p className="mb-3 text-[10px] uppercase tracking-[0.32em] text-muted-foreground">{t("ins_index")}</p>
-        <NavItem label={t("ins_all_insights")} count={counts.all} active={view === "all"} onClick={() => { setView("all"); setFilterDrawerOpen(false); }} />
-      </div>
-      <div>
-        <p className="mb-3 text-[10px] uppercase tracking-[0.32em] text-muted-foreground">{t("ins_signals")}</p>
-        <div className="space-y-0.5">
-          {categoryOrder.map((cat) => (
-            <NavItem
-              key={cat}
-              label={t(CATEGORY_META[cat].labelKey)}
-              count={counts[cat]}
-              active={view === cat}
-              onClick={() => { setView(cat); setFilterDrawerOpen(false); }}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+    return {
+      all: searchFiltered.length,
+      hotNotes: searchFiltered.filter((item) => item.category === "hotNotes").length,
+      hotEntities: searchFiltered.filter((item) => item.category === "hotEntities").length,
+      worthRevisiting: searchFiltered.filter((item) => item.category === "worthRevisiting").length,
+      forgottenGems: searchFiltered.filter((item) => item.category === "forgottenGems").length,
+    };
+  }, [insights, search]);
 
   return (
     <AppLayout>
       <div className="relative min-h-full">
-        {/* Menu Lateral Mobile */}
-        <Sheet open={filterDrawerOpen} onOpenChange={setFilterDrawerOpen}>
-          <SheetContent side="left" className="w-[280px] border-border/10 bg-background/95 p-6">
-            <p className="mb-6 font-serif text-2xl text-foreground">{t("ins_filters")}</p>
-            {SidebarContent}
-          </SheetContent>
-        </Sheet>
-
-        <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 pt-[14px] pb-5 lg:flex-row lg:gap-16 lg:px-12 lg:py-16">
-          {/* Sidebar Desktop */}
-          <aside className="hidden lg:sticky lg:top-16 lg:block lg:w-52 lg:shrink-0 lg:self-start">
-            {SidebarContent}
-          </aside>
-
-          {/* Conteúdo Principal */}
-          <main className="min-w-0 flex-1">
+        <main className="mx-auto min-h-full w-full max-w-5xl px-4 pb-8 pt-5 sm:px-6 lg:px-8 lg:pt-8">
             {/* Evolução do score */}
-            <div className="-mx-6 mb-6 sm:-mx-2 lg:-mx-4 lg:mb-8">
+            <div className="-mx-4 mb-6 sm:-mx-2 lg:mx-0 lg:mb-8">
               <ScoreEvolutionSection />
             </div>
 
+            <MemoriesSection />
 
-
-            {/* Mobile: search + category chips */}
-            <div className="mb-5 space-y-3 lg:hidden">
+            {/* Shared search and category filters */}
+            <div className="mb-5 space-y-3">
               <div className="flex items-center gap-2">
                 <div className="relative z-0 flex-1">
                   <MagnifyingGlassIcon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -444,20 +457,6 @@ export default function Insights() {
                 ]}
               />
             </div>
-
-            {/* Input de Busca Sticky (desktop) */}
-            <div className="sticky top-14 z-10 -mx-4 hidden border-b border-border/10 bg-background/70 px-4 py-3 backdrop-blur-xl lg:block">
-              <div className="relative">
-                <MagnifyingGlassIcon className="pointer-events-none absolute left-0 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder={t("ins_search_placeholder")}
-                  className="w-full border-0 bg-transparent pl-6 text-sm text-foreground placeholder:italic placeholder:text-muted-foreground focus:outline-none focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                />
-              </div>
-            </div>
-
 
             <div className="flex items-center justify-between border-b border-border/5 pb-3 pt-4 mb-4 text-[11px] text-muted-foreground">
               <div>
@@ -491,8 +490,7 @@ export default function Insights() {
                 </ul>
               )}
             </div>
-          </main>
-        </div>
+        </main>
       </div>
     </AppLayout>
   );
